@@ -33,7 +33,10 @@ FNPRToolsViewExtension::FNPRToolsViewExtension(const FAutoRegister& AutoRegister
 {
 }
 
-void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessingInputs& Inputs)
+void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
+	FRDGBuilder& GraphBuilder, 
+	const FSceneView& View, 
+	const FPostProcessingInputs& Inputs)
 {
 	// Get the scene colour texture from the post process inputs
 	Inputs.Validate();
