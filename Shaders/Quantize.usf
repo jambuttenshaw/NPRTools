@@ -1,0 +1,44 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+
+Texture2D<float4> InBilateralTexture;
+Texture2D<float4> InDoGFlowTexture;
+
+
+float4 QuantizePS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+	float3 ColorYCC = InBilateralTexture.Sample(View.SharedPointClampedSampler, InUV).rgb;
+
+    //shader x + real-time video abstractions
+    //can also trial w/float3 over float with cbcr included in the bins
+	float quantNearest = floor(ColorYCC.x * float(numBins) + 0.5) / float(numBins);
+	float quantSmoothStep = smoothstep(-2.0, 2.0, phi * (ColorYCC.x - quantNearest) * 100) - 0.5; //-0.5 to offset the +0.5 in qN
+	float quantLum = quantNearest + quantSmoothStep / float(numBins); //note 
+	float3 quantCol = float3(quantLum, ColorYCC.g - 0.5, ColorYCC.b - 0.5);
+
+	// http://www.mir.com/DMG/ycbcr.html
+    /*  
+    r'	=	1.0 * y' + 0 * cB + 1.402 * cR
+    g'	=	1.0 * y' + -0.344136 * cB + -0.714136 * cR
+    b'	=	1.0 * y' + 1.772 * cB + 0 * cR
+    */
+
+    //convert to RGB
+	const float3 r = float3(1, 0, 1.402);
+	const float3 g = float3(1, -0.344136, -0.714136);
+	const float3 b = float3(1, 1.772, 0);
+  
+	float3 rgbVal;
+	rgbVal.r = dot(r, quantCol);
+	rgbVal.g = dot(g, quantCol);
+	rgbVal.b = dot(b, quantCol);
+    
+    //MULTIPLY BY DOG Y (1 or 0) for lines
+	float dogVal = InDoGFlowTexture.Sample(View.SharedPointClampedSampler, InUV).r;
+	return float4((rgbVal * dogVal), 1.0f);
+}

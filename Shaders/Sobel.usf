@@ -4,40 +4,39 @@
 
 SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 
-Texture2D<float4> SceneColor;
+Texture2D<float4> SceneColorTexture;
 
 
-float4 SobelPassPS(
-	float2 InUV : TEXCOORD0,
-	float4 SvPosition : SV_Position
+float4 SobelPS(
+	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
-	float rcpW = ViewPort_ExtentInverse.x;
-	float rcpH = ViewPort_ExtentInverse.y;
+	const float rcpW = ViewPort_ExtentInverse.x;
+	const float rcpH = ViewPort_ExtentInverse.y;
 
-	SamplerState sampler0 = View.SharedPointClampedSampler;
+	const SamplerState sampler0 = View.SharedPointClampedSampler;
 
-	float4 u = float4(-1.0 * SceneColor.Sample(sampler0, InUV + float2(-rcpW, -rcpH)) +
-                      -2.0 * SceneColor.Sample(sampler0, InUV + float2(-rcpW, 0.0)) +
-                      -1.0 * SceneColor.Sample(sampler0, InUV + float2(-rcpW, rcpH)) +
+	float4 u = float4(-1.0 * SceneColorTexture.Sample(sampler0, InUV + float2(-rcpW, -rcpH)) +
+                      -2.0 * SceneColorTexture.Sample(sampler0, InUV + float2(-rcpW, 0.0)) +
+                      -1.0 * SceneColorTexture.Sample(sampler0, InUV + float2(-rcpW, rcpH)) +
 		              
-                      1.0 * SceneColor.Sample(sampler0, InUV + float2(rcpW, -rcpH)) +
-                      2.0 * SceneColor.Sample(sampler0, InUV + float2(rcpW, 0)) +
-                      1.0 * SceneColor.Sample(sampler0, InUV + float2(rcpW, rcpH)));
+                      1.0 * SceneColorTexture.Sample(sampler0, InUV + float2(rcpW, -rcpH)) +
+                      2.0 * SceneColorTexture.Sample(sampler0, InUV + float2(rcpW, 0)) +
+                      1.0 * SceneColorTexture.Sample(sampler0, InUV + float2(rcpW, rcpH)));
 	u *= 0.25;
 
-	float4 v = float4(-1.0 * SceneColor.Sample(sampler0, InUV + float2(-rcpW, -rcpH)) +
-                      -2.0 * SceneColor.Sample(sampler0, InUV + float2(0.0, -rcpH)) +
-                      -1.0 * SceneColor.Sample(sampler0, InUV + float2(rcpW, -rcpH)) +
+	float4 v = float4(-1.0 * SceneColorTexture.Sample(sampler0, InUV + float2(-rcpW, -rcpH)) +
+                      -2.0 * SceneColorTexture.Sample(sampler0, InUV + float2(0.0, -rcpH)) +
+                      -1.0 * SceneColorTexture.Sample(sampler0, InUV + float2(rcpW, -rcpH)) +
 		              
-                      1.0 * SceneColor.Sample(sampler0, InUV + float2(-rcpW, rcpH)) +
-                      2.0 * SceneColor.Sample(sampler0, InUV + float2(0, rcpH)) +
-                      1.0 * SceneColor.Sample(sampler0, InUV + float2(rcpW, rcpH)));
+                      1.0 * SceneColorTexture.Sample(sampler0, InUV + float2(-rcpW, rcpH)) +
+                      2.0 * SceneColorTexture.Sample(sampler0, InUV + float2(0, rcpH)) +
+                      1.0 * SceneColorTexture.Sample(sampler0, InUV + float2(rcpW, rcpH)));
 	v *= 0.25;
 
-	float3 fragColor = float3(dot(u.xyz, u.xyz), //E
-							  dot(u.xyz, v.xyz), //F
+	float3 FragColor = float3(dot(u.xyz, u.xyz),  //E
+							  dot(u.xyz, v.xyz),  //F
 							  dot(v.xyz, v.xyz)); //G
 
-	return float4(fragColor, 1.0f);
+	return float4(FragColor, 1.0f);
 }

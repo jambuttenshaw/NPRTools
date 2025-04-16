@@ -1,0 +1,30 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+
+Texture2D<float4> SceneColorTexture;
+
+
+float4 ConvertYCbCrPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+	//Conversion to y'cBcR from r'g'b'
+	//y' =	0.299 * r' + 0.587 * g'	+	0.114 * b'
+	//cB = -0.168736 * r'	+	-0.331264 * g' + 0.500 * b'
+	//cR = 0.500 * r'	+	-0.418688 * g' + -0.081312 * b'
+
+	const float3 lum = float3(0.299, 0.587, 0.114);
+	const float3 Cblue = float3(-0.168736, -0.331264, 0.5);
+	const float3 Cred = float3(0.5, -0.418688, -0.081312);
+
+	float3 SceneColor = SceneColorTexture.Sample(View.SharedPointClampedSampler, InUV).xyz;
+
+	float yprime = dot(SceneColor, lum);
+	float Cb = dot(SceneColor, Cblue) + 0.5; //Cb [-.5, 0.5] so need to add 0.5
+	float Cr = dot(SceneColor, Cred) + 0.5;
+
+	return float4(yprime, Cb, Cr, 1.0); //color converted to Y'CbCr;
+}

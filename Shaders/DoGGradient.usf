@@ -1,0 +1,56 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+
+float SigmaE;
+float SigmaP;
+
+Texture2D<float4> InBilateralTexture; // Output of bilateral pass
+Texture2D<float4> InTangentFlowMapTexture;
+
+
+float4 DoGGradientPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+	const SamplerState sampler0 = View.SharedPointClampedSampler;
+
+	float sigmaE2 = 2 * SigmaE * SigmaE;
+	float sigmaPrime2 = 2 * SigmaP * SigmaP;
+	float2 tangent = InTangentFlowMapTexture.Sample(sampler0, InUV).xy;
+	float2 normal = float2(tangent.y, -tangent.x); //90 rot
+	float2 NormAbs = abs(normal);
+
+	float deltaStep = rcp(max(NormAbs.x, NormAbs.y));
+
+	float2 dir = normal * ViewPort_ExtentInverse;
+
+	//the x will be for the GaussianE  and y will be for GaussianEPrime  use vector maths ftw
+
+	float2 sum = InBilateralTexture.Sample(sampler0, InUV).xx; // only care about luminence channel
+
+	float2 mag = float2(1.0, 1.0); //start for the magnitude
+
+	float halfWidth = 2.0f * SigmaP; //so should be 0.5?
+
+	[unroll(64)] //added 64 loops b/c assume eighvector is normalized so max val will be .707 or higher distance sig <10 20/.707 = 28.3 can handle sigmaD to 22 right now
+	for (float d = deltaStep; d <= halfWidth; d += deltaStep)
+	{
+		float2 KDE = float2(exp(-d * d / sigmaE2), exp(-d * d / sigmaPrime2));
+		float2 l0 = InBilateralTexture.Sample(sampler0, InUV + float2(d * dir)).xx; //luminance
+		float2 l1 = InBilateralTexture.Sample(sampler0, InUV - float2(d * dir)).xx;
+
+		mag += 2 * KDE; //will this still be neccessary after difference? will it separate out? just for scaling is OK
+
+		sum += KDE * (l0 + l1);
+	}
+
+	sum /= mag;
+
+	float scaleFactor = 100; //should be 100
+	float DoG = scaleFactor * (sum.x - tau * sum.y);
+
+	return float4(DoG, DoG, DoG, 1);
+}

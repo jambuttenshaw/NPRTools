@@ -25,7 +25,7 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FSobelPassPS, "/NPRTools/Sobel.usf", "SobelPassPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FSobelPassPS, "/NPRTools/Sobel.usf", "SobelPS", SF_Pixel);
 
 
 FNPRToolsViewExtension::FNPRToolsViewExtension(const FAutoRegister& AutoRegister)
@@ -44,10 +44,15 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 
 	// Create a texture to hold the output of our Sobel filter
 	// It should be the same format etc as the scene colour texture
-	FRDGTextureDesc SobelOutputDesc = SceneColor->Desc;
-	SobelOutputDesc.ClearValue = FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f));
+	FRDGTextureDesc TextureDesc = SceneColor->Desc;
+	TextureDesc.ClearValue = FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f));
+	// TODO: All textures may not need to have 4 channels
+	TextureDesc.Format = PF_FloatRGBA;
 
-	FRDGTextureRef SobelOutputTexture = GraphBuilder.CreateTexture(SobelOutputDesc, TEXT("SobelOutput"));
+	FRDGTextureRef TangentFlowMapTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TFM"));
+	FRDGTextureRef ColorChangeTexture    = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.ColorChange"));
+	FRDGTextureRef TempPingTexture		 = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TempPing"));
+	FRDGTextureRef TempPongTexture		 = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TempPong"));
 
 	// We want to perform our postprocessing to the entire viewport
 	FScreenPassTextureViewport ViewPort(UE::FXRenderingUtils::GetRawViewRectUnsafe(View));
@@ -61,7 +66,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		PassParameters->ViewPort = GetScreenPassTextureViewportParameters(ViewPort);
 
 		PassParameters->SceneColor = GraphBuilder.CreateSRV(SceneColor);
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(SobelOutputTexture, ERenderTargetLoadAction::EClear);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(TangentFlowMapTexture, ERenderTargetLoadAction::EClear);
 
 		// Retrieve our pixel shader from the global shader map
 		const FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(View.GetFeatureLevel());
@@ -83,7 +88,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	{
 		AddCopyTexturePass(
 			GraphBuilder,
-			SobelOutputTexture,
+			TangentFlowMapTexture,
 			SceneColor
 		);
 	}

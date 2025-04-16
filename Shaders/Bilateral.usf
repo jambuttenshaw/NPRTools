@@ -1,0 +1,64 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+
+float SigmaD;
+float SigmaR;
+
+Texture2D<float4> InSceneColorYCCTexture;
+Texture2D<float4> InTangentFlowMapTexture;
+
+
+float4 BilateralPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+	const SamplerState sampler0 = View.SharedPointClampedSampler;
+
+	float SigmaD2 = 2.0f * SigmaD * SigmaD;
+	float SigmaR2 = 2.0f * SigmaR * SigmaR;
+
+    //read the texture flow map for the direction 
+	float2 t = InTangentFlowMapTexture.Sample(sampler0, InUV).xy;
+
+#if BILATERAL_PASS == 0		 // Tangent pass
+	float2 dir = t;
+#else if BILATERAL_PASS == 1 // Gradient pass
+	float2 dir = float2(t.y, -t.x);
+#endif
+
+	float2 dirAbs = abs(dir);
+	float deltaS = rcp(max(dirAbs.x, dirAbs.y));
+
+	dir *= ViewPort_ExtentInverse;
+
+	float3 pix = InSceneColorYCCTexture.Sample(sampler0, InUV).xyz;
+	float3 sum = pix;
+
+	float mag = 1.0; //start for the magnitude
+
+	float halfWidth = 2.0f * SigmaD; //so should be 0.5?
+
+    [unroll(64)] //added 64 loops b/c assume eighvector is normalized so max val will be .707 or higher distance sig <10 20/.707 = 28.3 can handle sigmaD to 22 right now
+	for (float d = deltaS; d <= halfWidth; d += deltaS)
+	{
+		float3 c0 = InSceneColorYCCTexture.Sample(sampler0, InUV + float2(d * dir)).xyz;
+		float3 c1 = InSceneColorYCCTexture.Sample(sampler0, InUV - float2(d * dir)).xyz;
+
+		float e0 = length(c0 - pix); //difference from color in center pixel and test pixel
+		float e1 = length(c1 - pix);
+
+		float kernelDist = exp(-d * d / SigmaD2);
+		float kernele0 = exp(-e0 * e0 / SigmaR2);
+		float kernele1 = exp(-e1 * e1 / SigmaR2);
+
+		mag += kernelDist * (kernele0 + kernele1);
+		sum += kernelDist * (kernele0 * c0 + kernele1 * c1);
+	}
+
+	sum /= mag;
+
+	return float4(sum.xyz, 1.0);
+}

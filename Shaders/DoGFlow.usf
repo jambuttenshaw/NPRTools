@@ -1,0 +1,92 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+
+float SigmaM;
+
+Texture2D<float4> InDoGGradientTexture; // Output of DoG gradient pass
+Texture2D<float4> InTangentFlowMapTexture;
+
+
+struct LineIntegralConv
+{
+	float2 uv;
+	float2 prevTan;
+	float totalLength;
+	float deltaLength;
+};
+
+void TakeStep(inout LineIntegralConv lic)
+{
+	float2 tan = InTangentFlowMapTexture.Sample(View.SharedPointClampedSampler, lic.uv).xy; //get the tangent from the map
+	float signT = 1;
+	if (dot(tan, lic.prevTan) < 0)
+	{
+		signT = -1; //take the smallest difference aka rotate ccw or cw depending on relation to last tan
+	}
+	tan *= signT;
+	lic.prevTan = tan; //update prev tan
+
+	float2 absTan = abs(tan);
+	float2 stepsXY = (frac(lic.uv) - float2(0.5, 0.5) - sign(tan)) / tan; //figure out delta step along x or y see fig 3.39 but it is line intercept formula 0.5 for centre sample
+	lic.deltaLength = absTan.x > absTan.y ? stepsXY.x : stepsXY.y; //optimise this
+         
+	//move uv along the delta step
+	lic.uv += tan * lic.deltaLength * ViewPort_ExtentInverse;
+	lic.totalLength += lic.deltaLength; //this is used to checking if we are done looping through aka have we stepped along enough
+}
+
+
+float4 DoGFlowPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+	const SamplerState sampler0 = View.SharedPointClampedSampler;
+
+	float sigmaM2 = 2 * SigmaM * SigmaM;
+
+	float sum = InDoGGradientTexture.Sample(sampler0, InUV).x; // only care about luminence channel
+
+	float weight = 1; //start for the magnitude
+	float halfWidth = 2.0f * SigmaM; //so should be 0.5?
+
+	//a goes up the curve b goes down the curve
+	LineIntegralConv a, b;
+	a.uv = b.uv = InUV;
+	a.prevTan = InTangentFlowMapTexture.Sample(sampler0, InUV).xy * ViewPort_ExtentInverse;
+	b.prevTan = -a.prevTan;
+	a.totalLength = b.totalLength = 0.0;
+	a.deltaLength = b.deltaLength = 0.0;
+
+	float kernel = 0;
+
+	[unroll(64)] //added 64 loops b/c assume eighvector is normalized so max val will be .707 or higher distance sig <10 20/.707 = 28.3 can handle sigmaD to 22 right now
+	while (a.totalLength < halfWidth)
+	{
+		TakeStep(a);
+		kernel = a.deltaLength * exp(-a.totalLength * a.totalLength / sigmaM2);
+		sum += kernel * InDoGGradientTexture.Sample(sampler0, a.uv).x;
+    
+		weight += kernel;
+	}
+
+	[unroll(64)]
+	while (b.totalLength < halfWidth)
+	{
+		TakeStep(b);
+		kernel = b.deltaLength * exp(-b.totalLength * b.totalLength / sigmaM2);
+		sum += kernel * InDoGGradientTexture.Sample(sampler0, b.uv).x;
+
+		weight += kernel;
+	}
+
+	sum /= weight;
+
+	//float edge = sum > 0.0 ? 1.0 : 2.0 * smoothstep(-2, 2, phi * sum); //this is wrong need an epsi
+	// float edge = sum > 0.001 ? 1.0 : 0;
+	float edge = sum > 0.1 ? 1.0 : 0;
+
+	return float4(edge, edge, edge, 1);
+}

@@ -1,0 +1,88 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+
+Texture2D<float4> InTexture;
+
+
+float4 BlurEigenVerticalPS(
+	float2 InUV : TEXCOORD0,
+	float4 SvPosition : SV_Position
+) : SV_Target0
+{
+	const SamplerState sampler0 = View.SharedPointClampedSampler;
+
+	const float rcpH = ViewPort_ExtentInverse.y;
+	const float oneOver256 = 1.0 / 256.0;
+	float3 u = float3(
+				 oneOver256 * InTexture.Sample(sampler0, InUV + float2(0.0, -rcpH) * 4.0f).rgb +
+		  8.0  * oneOver256 * InTexture.Sample(sampler0, InUV + float2(0.0, -rcpH) * 3.0f).rgb +
+		  28.0 * oneOver256 * InTexture.Sample(sampler0, InUV + float2(0.0, -rcpH) * 2.0f).rgb +
+		  56.0 * oneOver256 * InTexture.Sample(sampler0, InUV + float2(0.0, -rcpH) * 1.0f).rgb +
+		  70.0 * oneOver256 * InTexture.Sample(sampler0, InUV).rgb +
+		  56.0 * oneOver256 * InTexture.Sample(sampler0, InUV + float2(0.0, rcpH) * 1.0f).rgb +
+		  28.0 * oneOver256 * InTexture.Sample(sampler0, InUV + float2(0.0, rcpH) * 2.0f).rgb +
+		  8.0  * oneOver256 * InTexture.Sample(sampler0, InUV + float2(0.0, rcpH) * 3.0f).rgb +
+				 oneOver256 * InTexture.Sample(sampler0, InUV + float2(0.0, rcpH) * 4.0f).rgb
+	);
+
+	return u;
+}
+
+
+float4 BlurEigenHorizontalPS(
+	float2 InUV : TEXCOORD0,
+	float4 SvPosition : SV_Position
+) : SV_Target0
+{
+	const SamplerState sampler0 = View.SharedPointClampedSampler;
+
+	const float rcpW = ViewPort_ExtentInverse.x;
+	const float oneOver256 = 1.0 / 256.0;
+	float3 u = float3(
+			   oneOver256 * InTexture.Sample(sampler0, InUV + float2(-rcpW, 0.0) * 4.0f).rgb +
+        8.0  * oneOver256 * InTexture.Sample(sampler0, InUV + float2(-rcpW, 0.0) * 3.0f).rgb +
+        28.0 * oneOver256 * InTexture.Sample(sampler0, InUV + float2(-rcpW, 0.0) * 2.0f).rgb +
+        56.0 * oneOver256 * InTexture.Sample(sampler0, InUV + float2(-rcpW, 0.0) * 1.0f).rgb +
+        70.0 * oneOver256 * InTexture.Sample(sampler0, InUV).rgb +
+        56.0 * oneOver256 * InTexture.Sample(sampler0, InUV + float2(rcpW, 0.0) * 1.0f).rgb +
+        28.0 * oneOver256 * InTexture.Sample(sampler0, InUV + float2(rcpW, 0.0) * 2.0f).rgb +
+        8.0  * oneOver256 * InTexture.Sample(sampler0, InUV + float2(rcpW, 0.0) * 3.0f).rgb +
+			   oneOver256 * InTexture.Sample(sampler0, InUV + float2(rcpW, 0.0) * 4.0f).rgb
+	);
+
+    //blur done here the F could be negative  E and G should be positive
+
+    //THERE IS STILL SOME REARANGING HERE TO DO SEE IMPORTANCE SAMPLING AND CHAPTER ON FLOATING POINTS IN RTRTG
+	//calculate lamda1, lamda2, eigenvector 1 eigenvector 2
+	//E/F/G  are xyz  E+G +- sqrt((E-G)^2 +4*F^2)   all / by 2
+	float EminGsq = (u.x - u.z);
+	EminGsq *= EminGsq;
+	float sqrtVal = sqrt(EminGsq + 4.0 * u.y * u.y); //check floating point issues see gpu4
+	float lambda1 = (u.x + u.z + sqrtVal) * 0.5f;
+	float lambda2 = (u.x + u.z - sqrtVal) * 0.5f;
+
+	float2 eigFlow2 = (float2(lambda1 - u.x, -u.y));
+	eigFlow2 = length(eigFlow2) == 0 ? float2(0, 1) : normalize(eigFlow2); //might be (1,0) worth testing
+
+	float aniso = 0.0f;
+	float lam12 = lambda1 + lambda2;
+	float phi = atan2(eigFlow2.y, eigFlow2.x); //atan  returns -pi to pi
+
+    //if (lambda1 < 0.0002)
+    //{
+    //    phi = -3.14159 / 2.0; //NOTE THIS IS ONLY FOR VISUAL OUTPUT USUALLY DON@T DISCOUNT ANGLE!
+    //}
+
+	if (lam12 > 0.0f)
+	{
+        //() is the accurate one
+		aniso = (lambda1 - lambda2) / lam12; //this works b/c of the +/- lambda1 will always >= lambda2
+       // aniso = lambda1 - lambda2 / lam12; gives shader toy results
+	}
+
+	return float4(eigFlow2.xy, aniso, phi); //instead of phi  will use a buffer output later
+}
+
