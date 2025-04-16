@@ -39,6 +39,8 @@ public class NPRTools : ModuleRules
 				"Slate",
 				"SlateCore",
 				"RenderCore",
+				"RHI",
+				"Renderer"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
