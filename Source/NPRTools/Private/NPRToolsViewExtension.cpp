@@ -5,7 +5,22 @@
 
 #include "PostProcess/PostProcessInputs.h"
 #include "SceneTextures.h"
-#include "FXRenderingUtils.h"
+
+
+static TAutoConsoleVariable<bool> CVarNPRToolsEnable(
+	TEXT("npr.Enable"),
+	true,
+	TEXT("Enables NPR pipeline (Default = true)"),
+	ECVF_RenderThreadSafe
+);
+
+namespace NPRTools
+{
+	static bool IsEnabled()
+	{
+		return CVarNPRToolsEnable.GetValueOnRenderThread();
+	}
+}
 
 
 class FSobelPassPS : public FGlobalShader
@@ -198,6 +213,11 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	const FSceneView& View, 
 	const FPostProcessingInputs& Inputs)
 {
+	if (!NPRTools::IsEnabled())
+	{
+		return;
+	}
+
 	// TODO: Expose these to be controlled by users
 	constexpr float SigmaD1 = 3.0f;
 	constexpr float SigmaR1 = 0.425f;
