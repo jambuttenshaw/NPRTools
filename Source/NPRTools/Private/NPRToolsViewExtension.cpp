@@ -228,7 +228,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	FRDGTextureRef TempPongTexture		 = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TempPong"));
 
 	// We want to perform our postprocessing to the entire viewport
-	FScreenPassTextureViewport ViewPort(UE::FXRenderingUtils::GetRawViewRectUnsafe(View));
+	FScreenPassTextureViewport ViewPort(TextureDesc.Extent);
 
 	// Helper function to dispatch pass to avoid boilerplate
 	auto AddPass = [&]<typename Shader, typename SetPassParametersLambdaType>(
