@@ -7,6 +7,8 @@ SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 float SigmaE;
 float SigmaP;
 
+float Tau;
+
 Texture2D<float4> InBilateralTexture; // Output of bilateral pass
 Texture2D<float4> InTangentFlowMapTexture;
 
@@ -50,7 +52,7 @@ float4 DoGGradientPS(
 	sum /= mag;
 
 	float scaleFactor = 100; //should be 100
-	float DoG = scaleFactor * (sum.x - tau * sum.y);
+	float DoG = scaleFactor * (sum.x - Tau * sum.y);
 
 	return float4(DoG, DoG, DoG, 1);
 }

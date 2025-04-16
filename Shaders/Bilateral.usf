@@ -23,9 +23,9 @@ float4 BilateralPS(
     //read the texture flow map for the direction 
 	float2 t = InTangentFlowMapTexture.Sample(sampler0, InUV).xy;
 
-#if BILATERAL_PASS == 0		 // Tangent pass
+#if BILATERAL_DIRECTION_TANGENT	// Tangent pass
 	float2 dir = t;
-#else if BILATERAL_PASS == 1 // Gradient pass
+#else // Gradient pass
 	float2 dir = float2(t.y, -t.x);
 #endif
 

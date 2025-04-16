@@ -4,6 +4,9 @@
 
 SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 
+int NumBins;
+float Phi;
+
 Texture2D<float4> InBilateralTexture;
 Texture2D<float4> InDoGFlowTexture;
 
@@ -16,9 +19,9 @@ float4 QuantizePS(
 
     //shader x + real-time video abstractions
     //can also trial w/float3 over float with cbcr included in the bins
-	float quantNearest = floor(ColorYCC.x * float(numBins) + 0.5) / float(numBins);
-	float quantSmoothStep = smoothstep(-2.0, 2.0, phi * (ColorYCC.x - quantNearest) * 100) - 0.5; //-0.5 to offset the +0.5 in qN
-	float quantLum = quantNearest + quantSmoothStep / float(numBins); //note 
+	float quantNearest = floor(ColorYCC.x * float(NumBins) + 0.5) / float(NumBins);
+	float quantSmoothStep = smoothstep(-2.0, 2.0, Phi * (ColorYCC.x - quantNearest) * 100) - 0.5; //-0.5 to offset the +0.5 in qN
+	float quantLum = quantNearest + quantSmoothStep / float(NumBins); //note 
 	float3 quantCol = float3(quantLum, ColorYCC.g - 0.5, ColorYCC.b - 0.5);
 
 	// http://www.mir.com/DMG/ycbcr.html

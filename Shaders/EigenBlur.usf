@@ -28,7 +28,7 @@ float4 BlurEigenVerticalPS(
 				 oneOver256 * InTexture.Sample(sampler0, InUV + float2(0.0, rcpH) * 4.0f).rgb
 	);
 
-	return u;
+	return float4(u, 1.0f);
 }
 
 
