@@ -5,6 +5,8 @@
 SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 
 float SigmaM;
+float Epsilon;
+float Phi;
 
 Texture2D<float4> InDoGGradientTexture; // Output of DoG gradient pass
 Texture2D<float4> InTangentFlowMapTexture;
@@ -86,7 +88,7 @@ float4 DoGFlowPS(
 
 	//float edge = sum > 0.0 ? 1.0 : 2.0 * smoothstep(-2, 2, phi * sum); //this is wrong need an epsi
 	// float edge = sum > 0.001 ? 1.0 : 0;
-	float edge = sum > 0.1 ? 1.0 : 0;
+	float edge = sum >= Epsilon ? 1.0 : 1 + tanh(Phi * (sum - Epsilon));
 
 	return float4(edge, edge, edge, 1);
 }

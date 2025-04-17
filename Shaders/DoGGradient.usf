@@ -5,7 +5,7 @@
 SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 
 float SigmaE;
-float SigmaP;
+float SigmaP; // = SigmaE * k
 
 float Tau;
 
@@ -52,7 +52,7 @@ float4 DoGGradientPS(
 	sum /= mag;
 
 	float scaleFactor = 100; //should be 100
-	float DoG = scaleFactor * (sum.x - Tau * sum.y);
+	float DoG = scaleFactor * ((1 + Tau) * sum.x - Tau * sum.y);
 
 	return float4(DoG, DoG, DoG, 1);
 }

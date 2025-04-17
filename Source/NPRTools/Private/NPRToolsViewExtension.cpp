@@ -14,11 +14,35 @@ static TAutoConsoleVariable<bool> CVarNPRToolsEnable(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarNPRToolsNumBilateralFilterPasses(
+	TEXT("npr.Bilateral"),
+	1,
+	TEXT("Set the number of bilateral filter passes to use (Default = 1)"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<bool> CVarNPRToolsQuantization(
+	TEXT("npr.Quantization"),
+	false,
+	TEXT("Enables color quantization (Default = false)"),
+	ECVF_RenderThreadSafe
+);
+
 namespace NPRTools
 {
 	static bool IsEnabled()
 	{
 		return CVarNPRToolsEnable.GetValueOnRenderThread();
+	}
+
+	static int32 GetNumBilateralFilterPasses()
+	{
+		return CVarNPRToolsNumBilateralFilterPasses.GetValueOnRenderThread();
+	}
+
+	static bool UseQuantization()
+	{
+		return CVarNPRToolsQuantization.GetValueOnRenderThread();
 	}
 }
 
@@ -167,6 +191,8 @@ public:
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
 
 		SHADER_PARAMETER(float, SigmaM)
+		SHADER_PARAMETER(float, Epsilon)
+		SHADER_PARAMETER(float, Phi)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InDoGGradientTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InTangentFlowMapTexture)
@@ -225,11 +251,15 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	constexpr float SigmaR2 = 3.3f;
 
 	constexpr float SigmaE = 1.0f;
-	constexpr float SigmaP = 1.6f;
+	constexpr float K = 1.6f;
+	constexpr float Tau = 20.0f;
+
 	constexpr float SigmaM = 3.0f;
-	constexpr float Tau = 0.93999f;
+	constexpr float Epsilon = 0.1f;
+	constexpr float PhiEdge = 3.4f;
+
 	constexpr int32 NumBins = 16;
-	constexpr float Phi = 3.4f;
+	constexpr float PhiColor = 3.4f;
 
 	// Get the scene colour texture from the post process inputs
 	Inputs.Validate();
@@ -310,17 +340,25 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		);
 	}
 
-	// Perform bilateral filtering
-	{
-		AddPass.operator()<FConvertYCCPassPS>(
-			RDG_EVENT_NAME("NPRTools_ConvertYCC"),
-			TempPongTexture,
-			[&](auto PassParameters)
-			{
-				PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(SceneColorTexture);
-			}
-		);
+	AddPass.operator()<FConvertYCCPassPS>(
+		RDG_EVENT_NAME("NPRTools_ConvertYCC"),
+		TempPongTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(SceneColorTexture);
+		}
+	);
 
+	// Copy ensures that the ping-ponging will be correct for multiple bilateral filters
+	AddCopyTexturePass(
+		GraphBuilder,
+		TempPongTexture,
+		ColorChangeTexture
+	);
+
+	// Perform bilateral filtering
+	for (int32 i = 0; i < NPRTools::GetNumBilateralFilterPasses(); i++)
+	{
 		FBilateralPassPS::FPermutationDomain Permutation;
 		Permutation.Set<FBilateralPassPS::FBilateralDirectionTangent>(true);
 
@@ -332,7 +370,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 				PassParameters->SigmaD = SigmaD1;
 				PassParameters->SigmaR = SigmaR1;
 
-				PassParameters->InSceneColorYCCTexture = GraphBuilder.CreateSRV(TempPongTexture);
+				PassParameters->InSceneColorYCCTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
 				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
 			},
 			Permutation
@@ -363,7 +401,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 			[&](auto PassParameters)
 			{
 				PassParameters->SigmaE = SigmaE;
-				PassParameters->SigmaP = SigmaP;
+				PassParameters->SigmaP = SigmaE * K;
 				PassParameters->Tau = Tau;
 
 				PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
@@ -377,6 +415,8 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 			[&](auto PassParameters)
 			{
 				PassParameters->SigmaM = SigmaM;
+				PassParameters->Epsilon = Epsilon;
+				PassParameters->Phi = PhiEdge;
 
 				PassParameters->InDoGGradientTexture = GraphBuilder.CreateSRV(TempPingTexture);
 				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
@@ -384,18 +424,29 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		);
 	}
 
-	// Perform Quantization
-	AddPass.operator()<FQuantizePassPS>(
-		RDG_EVENT_NAME("NPRTools_Quantization"),
-		SceneColorTexture,
-		[&](auto PassParameters)
-		{
-			PassParameters->NumBins = NumBins;
-			PassParameters->Phi = Phi;
+	if (NPRTools::UseQuantization())
+	{
+		// Perform Quantization
+		AddPass.operator()<FQuantizePassPS>(
+			RDG_EVENT_NAME("NPRTools_Quantization"),
+			SceneColorTexture,
+			[&](auto PassParameters)
+			{
+				PassParameters->NumBins = NumBins;
+				PassParameters->Phi = PhiColor;
 
-			PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
-			PassParameters->InDoGFlowTexture = GraphBuilder.CreateSRV(TempPongTexture);
-		}
-	);
+				PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
+				PassParameters->InDoGFlowTexture = GraphBuilder.CreateSRV(TempPongTexture);
+			}
+		);
+	}
+	else
+	{
+		AddCopyTexturePass(
+			GraphBuilder,
+			TempPongTexture,
+			SceneColorTexture
+		);
+	}
 }
  
