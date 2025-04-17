@@ -1,5 +1,7 @@
 #include "NPRToolsViewExtension.h"
 
+#include "NPRToolsWorldSubsystem.h"
+
 #include "ShaderParameterStruct.h"
 #include "ScreenPass.h"
 
@@ -30,6 +32,7 @@ static TAutoConsoleVariable<bool> CVarNPRToolsQuantization(
 
 namespace NPRTools
 {
+	// These are all functions for access on RENDER THREAD
 	static bool IsEnabled()
 	{
 		return CVarNPRToolsEnable.GetValueOnRenderThread();
@@ -228,9 +231,21 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FQuantizePassPS, "/NPRTools/Quantize.usf", "QuantizePS", SF_Pixel);
 
 
-FNPRToolsViewExtension::FNPRToolsViewExtension(const FAutoRegister& AutoRegister)
+FNPRToolsViewExtension::FNPRToolsViewExtension(const FAutoRegister& AutoRegister, UNPRToolsWorldSubsystem* InWorldSubsystem)
 	: FSceneViewExtensionBase(AutoRegister)
+	, WorldSubsystem(InWorldSubsystem)
 {
+}
+
+void FNPRToolsViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
+{
+	if (IsValid(WorldSubsystem))
+		WorldSubsystem->TransferState();
+}
+
+bool FNPRToolsViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
+{
+	return (CVarNPRToolsEnable.GetValueOnGameThread()) && IsValid(WorldSubsystem);
 }
 
 
@@ -239,27 +254,10 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	const FSceneView& View, 
 	const FPostProcessingInputs& Inputs)
 {
-	if (!NPRTools::IsEnabled())
-	{
+	if (!IsValid(WorldSubsystem) || !WorldSubsystem->ParametersProxy.IsValid())
 		return;
-	}
 
-	// TODO: Expose these to be controlled by users
-	constexpr float SigmaD1 = 3.0f;
-	constexpr float SigmaR1 = 0.425f;
-	constexpr float SigmaD2 = 0.34f;
-	constexpr float SigmaR2 = 3.3f;
-
-	constexpr float SigmaE = 1.0f;
-	constexpr float K = 1.6f;
-	constexpr float Tau = 20.0f;
-
-	constexpr float SigmaM = 3.0f;
-	constexpr float Epsilon = 0.1f;
-	constexpr float PhiEdge = 3.4f;
-
-	constexpr int32 NumBins = 16;
-	constexpr float PhiColor = 3.4f;
+	FNPRToolsParametersProxy* Parameters = WorldSubsystem->ParametersProxy.Get();
 
 	// Get the scene colour texture from the post process inputs
 	Inputs.Validate();
@@ -284,11 +282,10 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	auto AddPass = [&]<typename Shader, typename SetPassParametersLambdaType>(
 		FRDGEventName&& PassName,
 		FRDGTextureRef RenderTarget,
-		SetPassParametersLambdaType && SetPassParametersLambda,
-		typename Shader::FPermutationDomain Permutation = TShaderPermutationDomain()
-		)
+		SetPassParametersLambdaType&& SetPassParametersLambda,
+		typename Shader::FPermutationDomain Permutation = TShaderPermutationDomain())
 	{
-		typename  Shader::FParameters* PassParameters = GraphBuilder.AllocParameters<typename Shader::FParameters>();
+		typename Shader::FParameters* PassParameters = GraphBuilder.AllocParameters<typename Shader::FParameters>();
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->ViewPort = GetScreenPassTextureViewportParameters(ViewPort);
 
@@ -311,7 +308,6 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 
 	// Calculate tangent flow map
 	{
-		
 		AddPass.operator()<FSobelPassPS>(
 			RDG_EVENT_NAME("NPRTools_SobelFilter"),
 			TangentFlowMapTexture,
@@ -365,10 +361,10 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		AddPass.operator()<FBilateralPassPS>(
 			RDG_EVENT_NAME("NPRTools_BilateralTangent"),
 			TempPingTexture,
-			[&](FBilateralPassPS::FParameters* PassParameters)
+			[&](auto PassParameters)
 			{
-				PassParameters->SigmaD = SigmaD1;
-				PassParameters->SigmaR = SigmaR1;
+				PassParameters->SigmaD = Parameters->SigmaD1;
+				PassParameters->SigmaR = Parameters->SigmaR1;
 
 				PassParameters->InSceneColorYCCTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
 				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
@@ -381,10 +377,10 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		AddPass.operator()<FBilateralPassPS>(
 			RDG_EVENT_NAME("NPRTools_BilateralGradient"),
 			ColorChangeTexture,
-			[&](FBilateralPassPS::FParameters* PassParameters)
+			[&](auto PassParameters)
 			{
-				PassParameters->SigmaD = SigmaD2;
-				PassParameters->SigmaR = SigmaR2;
+				PassParameters->SigmaD = Parameters->SigmaD2;
+				PassParameters->SigmaR = Parameters->SigmaR2;
 
 				PassParameters->InSceneColorYCCTexture = GraphBuilder.CreateSRV(TempPingTexture);
 				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
@@ -400,9 +396,9 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 			TempPingTexture,
 			[&](auto PassParameters)
 			{
-				PassParameters->SigmaE = SigmaE;
-				PassParameters->SigmaP = SigmaE * K;
-				PassParameters->Tau = Tau;
+				PassParameters->SigmaE = Parameters->SigmaE;				 // Following convention in paper where SigmaE' = SigmaE * K, 
+				PassParameters->SigmaP = Parameters->SigmaE * Parameters->K; // and allowing users to modify SigmaE and K
+				PassParameters->Tau = Parameters->Tau;
 
 				PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
 				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
@@ -414,9 +410,9 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 			TempPongTexture,
 			[&](auto PassParameters)
 			{
-				PassParameters->SigmaM = SigmaM;
-				PassParameters->Epsilon = Epsilon;
-				PassParameters->Phi = PhiEdge;
+				PassParameters->SigmaM = Parameters->SigmaM;
+				PassParameters->Epsilon = Parameters->Epsilon;
+				PassParameters->Phi = Parameters->PhiEdge;
 
 				PassParameters->InDoGGradientTexture = GraphBuilder.CreateSRV(TempPingTexture);
 				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
@@ -432,8 +428,8 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 			SceneColorTexture,
 			[&](auto PassParameters)
 			{
-				PassParameters->NumBins = NumBins;
-				PassParameters->Phi = PhiColor;
+				PassParameters->NumBins = Parameters->NumBins;
+				PassParameters->Phi = Parameters->PhiColor;
 
 				PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
 				PassParameters->InDoGFlowTexture = GraphBuilder.CreateSRV(TempPongTexture);
