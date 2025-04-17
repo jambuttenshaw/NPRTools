@@ -66,11 +66,21 @@ public:
 	float PhiEdge;
 
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Quantization")
+	bool bEnableQuantization;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Color Quantization")
 	int32 NumBins;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Color Quantization")
 	float PhiColor;
+
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
+	bool bNoEdges;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
+	bool bEdgesOnly;
 };
 
 
@@ -96,8 +106,13 @@ struct FNPRToolsParametersProxy
 	float PhiEdge;
 
 	// Quantization parameters
+	bool bEnableQuantization;
 	int32 NumBins;
 	float PhiColor;
+
+	// Composition parameters
+	bool bNoEdges;
+	bool bEdgesOnly;
 };
 
 

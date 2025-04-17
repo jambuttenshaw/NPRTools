@@ -16,19 +16,6 @@ static TAutoConsoleVariable<bool> CVarNPRToolsEnable(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarNPRToolsNumBilateralFilterPasses(
-	TEXT("npr.Bilateral"),
-	1,
-	TEXT("Set the number of bilateral filter passes to use (Default = 1)"),
-	ECVF_RenderThreadSafe
-);
-
-static TAutoConsoleVariable<bool> CVarNPRToolsQuantization(
-	TEXT("npr.Quantization"),
-	false,
-	TEXT("Enables color quantization (Default = false)"),
-	ECVF_RenderThreadSafe
-);
 
 namespace NPRTools
 {
@@ -36,16 +23,6 @@ namespace NPRTools
 	static bool IsEnabled()
 	{
 		return CVarNPRToolsEnable.GetValueOnRenderThread();
-	}
-
-	static int32 GetNumBilateralFilterPasses()
-	{
-		return CVarNPRToolsNumBilateralFilterPasses.GetValueOnRenderThread();
-	}
-
-	static bool UseQuantization()
-	{
-		return CVarNPRToolsQuantization.GetValueOnRenderThread();
 	}
 }
 
@@ -222,13 +199,32 @@ public:
 		SHADER_PARAMETER(float, Phi)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InBilateralTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InDoGFlowTexture)
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
 
 IMPLEMENT_GLOBAL_SHADER(FQuantizePassPS, "/NPRTools/Quantize.usf", "QuantizePS", SF_Pixel);
+
+
+class FCombineEdgesPassPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCombineEdgesPassPS);
+	SHADER_USE_PARAMETER_STRUCT(FCombineEdgesPassPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InEdgesTexture)
+
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCombineEdgesPassPS, "/NPRTools/CombineEdges.usf", "CombineEdgesPS", SF_Pixel);
 
 
 FNPRToolsViewExtension::FNPRToolsViewExtension(const FAutoRegister& AutoRegister, UNPRToolsWorldSubsystem* InWorldSubsystem)
@@ -274,6 +270,11 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	FRDGTextureRef ColorChangeTexture    = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.ColorChange"));
 	FRDGTextureRef TempPingTexture		 = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TempPing"));
 	FRDGTextureRef TempPongTexture		 = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TempPong"));
+
+	AddClearRenderTargetPass(GraphBuilder, TangentFlowMapTexture);
+	AddClearRenderTargetPass(GraphBuilder, ColorChangeTexture);
+	AddClearRenderTargetPass(GraphBuilder, TempPingTexture);
+	AddClearRenderTargetPass(GraphBuilder, TempPongTexture);
 
 	// We want to perform our postprocessing to the entire viewport
 	FScreenPassTextureViewport ViewPort(TextureDesc.Extent);
@@ -353,7 +354,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	);
 
 	// Perform bilateral filtering
-	for (int32 i = 0; i < NPRTools::GetNumBilateralFilterPasses(); i++)
+	for (int32 i = 0; i < 1; i++)
 	{
 		FBilateralPassPS::FPermutationDomain Permutation;
 		Permutation.Set<FBilateralPassPS::FBilateralDirectionTangent>(true);
@@ -420,29 +421,46 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		);
 	}
 
-	if (NPRTools::UseQuantization())
+	if (Parameters->bEnableQuantization && !Parameters->bEdgesOnly)
 	{
 		// Perform Quantization
 		AddPass.operator()<FQuantizePassPS>(
 			RDG_EVENT_NAME("NPRTools_Quantization"),
-			SceneColorTexture,
+			TempPingTexture,
 			[&](auto PassParameters)
 			{
 				PassParameters->NumBins = Parameters->NumBins;
 				PassParameters->Phi = Parameters->PhiColor;
 
 				PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
-				PassParameters->InDoGFlowTexture = GraphBuilder.CreateSRV(TempPongTexture);
 			}
 		);
 	}
 	else
 	{
-		AddCopyTexturePass(
-			GraphBuilder,
-			TempPongTexture,
-			SceneColorTexture
+		// Copy scene colour texture as that has not been converted to YCC
+		AddCopyTexturePass(GraphBuilder, SceneColorTexture, TempPingTexture);
+	}
+
+	if (Parameters->bNoEdges)
+	{
+		AddCopyTexturePass(GraphBuilder, TempPingTexture, SceneColorTexture);
+	}
+	else if (Parameters->bEdgesOnly)
+	{
+		AddCopyTexturePass(GraphBuilder, TempPongTexture, SceneColorTexture);
+	}
+	else
+	{
+		// Combine edges and quantized color
+		AddPass.operator()<FCombineEdgesPassPS>(
+			RDG_EVENT_NAME("NPRTools_CombineEdges"),
+			SceneColorTexture,
+			[&](auto PassParameters)
+			{
+				PassParameters->InColorTexture = GraphBuilder.CreateSRV(TempPingTexture);
+				PassParameters->InEdgesTexture = GraphBuilder.CreateSRV(TempPongTexture);
+			}
 		);
 	}
-}
- 
+ }

@@ -8,7 +8,6 @@ int NumBins;
 float Phi;
 
 Texture2D<float4> InBilateralTexture;
-Texture2D<float4> InDoGFlowTexture;
 
 
 float4 QuantizePS(
@@ -41,7 +40,5 @@ float4 QuantizePS(
 	rgbVal.g = dot(g, quantCol);
 	rgbVal.b = dot(b, quantCol);
     
-    //MULTIPLY BY DOG Y (1 or 0) for lines
-	float dogVal = InDoGFlowTexture.Sample(View.SharedPointClampedSampler, InUV).r;
-	return float4((rgbVal * dogVal), 1.0f);
+	return float4(rgbVal, 1.0f);
 }

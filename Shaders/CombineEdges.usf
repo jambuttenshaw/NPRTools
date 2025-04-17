@@ -1,0 +1,20 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+
+Texture2D<float4> InColorTexture; // In RGB
+Texture2D<float4> InEdgesTexture;
+
+
+float4 CombineEdgesPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+	float3 ColorRGB = InColorTexture.Sample(View.SharedPointClampedSampler, InUV).rgb;
+
+	float EdgesVal = InEdgesTexture.Sample(View.SharedPointClampedSampler, InUV).r;
+
+	return float4((ColorRGB * EdgesVal), 1.0f);
+}

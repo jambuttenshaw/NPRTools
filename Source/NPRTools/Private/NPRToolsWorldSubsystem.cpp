@@ -49,14 +49,22 @@ FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const 
 		TempProxy->SigmaR1 = ParamsAsset->SigmaR1;
 		TempProxy->SigmaD2 = ParamsAsset->SigmaD2;
 		TempProxy->SigmaR2 = ParamsAsset->SigmaR2;
+
 		TempProxy->SigmaE = ParamsAsset->SigmaE;
 		TempProxy->K = ParamsAsset->K;
 		TempProxy->Tau = ParamsAsset->Tau;
+
 		TempProxy->SigmaM = ParamsAsset->SigmaM;
+
 		TempProxy->Epsilon = ParamsAsset->Epsilon;
 		TempProxy->PhiEdge = ParamsAsset->PhiEdge;
+
+		TempProxy->bEnableQuantization = ParamsAsset->bEnableQuantization;
 		TempProxy->NumBins = ParamsAsset->NumBins;
 		TempProxy->PhiColor = ParamsAsset->PhiColor;
+
+		TempProxy->bNoEdges = ParamsAsset->bNoEdges;
+		TempProxy->bEdgesOnly = ParamsAsset->bEdgesOnly;
 	}
 
 	return TempProxy;

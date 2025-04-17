@@ -19,6 +19,10 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	Epsilon = 0.1f;
 	PhiEdge = 3.4f;
 
+	bEnableQuantization = true;
 	NumBins = 16;
 	PhiColor = 3.4f;
+
+	bNoEdges = false;
+	bEdgesOnly = false;
 }
