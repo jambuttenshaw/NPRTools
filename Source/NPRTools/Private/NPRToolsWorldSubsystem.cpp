@@ -20,14 +20,17 @@ void UNPRToolsWorldSubsystem::Deinitialize()
 void UNPRToolsWorldSubsystem::TransferState()
 {
 	// Get params asset from world settings
-	ANPRWorldSettings* WorldSettings = Cast<ANPRWorldSettings>(GetWorld()->GetWorldSettings());
-	if (!WorldSettings)
+	const UNPRToolsParametersDataAsset* ParamsAsset = nullptr;
+	
+	if (AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings())
 	{
-		// TODO: Might be better to explicitly set an empty proxy?
-		return;
+		if (INPRWorldSettingsInterface* NPRSettingsInterface = Cast<INPRWorldSettingsInterface>(WorldSettings))
+		{
+			ParamsAsset = NPRSettingsInterface->GetNPRToolsParameters();
+		}
 	}
 
-	TSharedPtr<FNPRToolsParametersProxy> Proxy = CreateProxyFromAsset(WorldSettings->NPRParametersAsset);
+	TSharedPtr<FNPRToolsParametersProxy> Proxy = CreateProxyFromAsset(ParamsAsset);
 
 	ENQUEUE_RENDER_COMMAND(CopyNPRToolsParametersProxies)(
 		[this, TempProxy = MoveTemp(Proxy)]

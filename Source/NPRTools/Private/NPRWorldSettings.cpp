@@ -3,3 +3,7 @@
 
 #include "NPRWorldSettings.h"
 
+const UNPRToolsParametersDataAsset* ANPRWorldSettings::GetNPRToolsParameters() const
+{
+	return NPRParametersAsset.Get();
+}

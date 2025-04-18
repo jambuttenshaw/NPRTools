@@ -6,6 +6,7 @@
 #include "GameFramework/WorldSettings.h"
 
 #include "NPRToolsParameters.h"
+#include "NPRWorldSettingsInterface.h"
 
 #include "NPRWorldSettings.generated.h"
 
@@ -13,11 +14,15 @@
  * 
  */
 UCLASS()
-class NPRTOOLS_API ANPRWorldSettings : public AWorldSettings
+class NPRTOOLS_API ANPRWorldSettings : public AWorldSettings, public INPRWorldSettingsInterface
 {
 	GENERATED_BODY()
+public:
+	virtual const UNPRToolsParametersDataAsset* GetNPRToolsParameters() const override;
+
 public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="NPR Tools")
 	TObjectPtr<UNPRToolsParametersDataAsset> NPRParametersAsset;
+
 };
