@@ -62,6 +62,9 @@ FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const 
 		TempProxy->bEnableQuantization = ParamsAsset->bEnableQuantization;
 		TempProxy->NumBins = ParamsAsset->NumBins;
 		TempProxy->PhiColor = ParamsAsset->PhiColor;
+		TempProxy->bUseKuwahara = ParamsAsset->bUseKuwahara;
+		TempProxy->KuwaharaRadius = ParamsAsset->KuwaharaRadius;
+		TempProxy->KuwaharaTuning = ParamsAsset->KuwaharaTuning;
 
 		TempProxy->bNoEdges = ParamsAsset->bNoEdges;
 		TempProxy->bEdgesOnly = ParamsAsset->bEdgesOnly;

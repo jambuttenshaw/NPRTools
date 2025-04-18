@@ -13,7 +13,6 @@ class NPRTOOLS_API UNPRToolsWorldSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 public:
-
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 

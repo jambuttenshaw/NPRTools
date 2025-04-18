@@ -1,11 +1,13 @@
 #include "NPRToolsViewExtension.h"
 
+#include "NPRTools.h"
 #include "NPRToolsWorldSubsystem.h"
 
 #include "ShaderParameterStruct.h"
 #include "ScreenPass.h"
 
 #include "PostProcess/PostProcessInputs.h"
+#include "RenderTargetPool.h"
 #include "SceneTextures.h"
 
 
@@ -207,6 +209,31 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FQuantizePassPS, "/NPRTools/Quantize.usf", "QuantizePS", SF_Pixel);
 
 
+class FAnisotropicKuwaharaPassPS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FAnisotropicKuwaharaPassPS);
+	SHADER_USE_PARAMETER_STRUCT(FAnisotropicKuwaharaPassPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+
+		SHADER_PARAMETER(float, Radius)
+		SHADER_PARAMETER(float, Tuning)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, SceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, GaussianLUTTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, TangentFlowMapTexture)
+
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FAnisotropicKuwaharaPassPS, "/NPRTools/AnisotropicKuwahara.usf", "AnisotropicKuwaharaPS", SF_Pixel);
+
+
 class FCombineEdgesPassPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCombineEdgesPassPS);
@@ -231,6 +258,7 @@ FNPRToolsViewExtension::FNPRToolsViewExtension(const FAutoRegister& AutoRegister
 	: FSceneViewExtensionBase(AutoRegister)
 	, WorldSubsystem(InWorldSubsystem)
 {
+	GaussianLUT = LoadObject<UTexture2D>(nullptr, TEXT("/Script/Engine.Texture2D'/NPRTools/Textures/T_KDE.T_KDE'"));
 }
 
 void FNPRToolsViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
@@ -423,18 +451,63 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 
 	if (Parameters->bEnableQuantization && !Parameters->bEdgesOnly)
 	{
-		// Perform Quantization
-		AddPass.operator()<FQuantizePassPS>(
-			RDG_EVENT_NAME("NPRTools_Quantization"),
-			TempPingTexture,
-			[&](auto PassParameters)
+		if (Parameters->bUseKuwahara)
+		{
+			// Register Gaussian kernel LUT into RDG
+			FRDGTextureRef LUT_RDG = GSystemTextures.GetBlackDummy(GraphBuilder);
+			if (GaussianLUT.IsValid(false, true) && GaussianLUT->GetResource())
 			{
-				PassParameters->NumBins = Parameters->NumBins;
-				PassParameters->Phi = Parameters->PhiColor;
+				FTextureRHIRef LUT_RHI = GaussianLUT->GetResource()->TextureRHI;
 
-				PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
+				// Register external texture to RDG;
+				FPooledRenderTargetDesc desc = FPooledRenderTargetDesc::Create2DDesc(
+					LUT_RHI->GetSizeXY(),
+					LUT_RHI->GetFormat(),
+					FClearValueBinding::Black,
+					TexCreate_None,
+					TexCreate_ShaderResource,
+					false,
+					LUT_RHI->GetNumMips());
+
+				FSceneRenderTargetItem renderTargetItem;
+				renderTargetItem.TargetableTexture = LUT_RHI;
+				renderTargetItem.ShaderResourceTexture = LUT_RHI;
+
+				TRefCountPtr<IPooledRenderTarget> PhaseFunctionLUT_RT;
+				GRenderTargetPool.CreateUntrackedElement(desc, PhaseFunctionLUT_RT, renderTargetItem);
+				LUT_RDG = GraphBuilder.RegisterExternalTexture(PhaseFunctionLUT_RT);
 			}
-		);
+
+			// Run Kuwahara pass
+			AddPass.operator()<FAnisotropicKuwaharaPassPS>(
+				RDG_EVENT_NAME("NPRTools_AnisotropicKuwahara"),
+				TempPingTexture,
+				[&](auto PassParameters)
+				{
+					PassParameters->Radius = Parameters->KuwaharaRadius;
+					PassParameters->Tuning = Parameters->KuwaharaTuning;
+
+					PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(SceneColorTexture);
+					PassParameters->GaussianLUTTexture = GraphBuilder.CreateSRV(LUT_RDG);
+					PassParameters->TangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
+				}
+			);
+		}
+		else
+		{
+			// Perform Quantization
+			AddPass.operator()<FQuantizePassPS>(
+				RDG_EVENT_NAME("NPRTools_Quantization"),
+				TempPingTexture,
+				[&](auto PassParameters)
+				{
+					PassParameters->NumBins = Parameters->NumBins;
+					PassParameters->Phi = Parameters->PhiColor;
+
+					PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
+				}
+			);
+		}
 	}
 	else
 	{

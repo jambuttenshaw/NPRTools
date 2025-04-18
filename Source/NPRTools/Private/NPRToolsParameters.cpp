@@ -22,6 +22,9 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	bEnableQuantization = true;
 	NumBins = 16;
 	PhiColor = 3.4f;
+	bUseKuwahara = false;
+	KuwaharaRadius = 10.0f;
+	KuwaharaTuning = 8.0f;
 
 	bNoEdges = false;
 	bEdgesOnly = false;
