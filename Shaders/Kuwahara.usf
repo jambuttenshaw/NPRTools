@@ -1,6 +1,10 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/ScreenPass.ush"
 
+#ifndef ANISOTROPIC
+#define ANISOTROPIC 1
+#endif
+
 
 SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 
@@ -175,12 +179,144 @@ float4 AnisotropicKuwahara(float2 InUV)
 }
 
 
+
+float4 kuwahara(float2 n, float phi, float A, float2 d, float2 uv)
+{
+	const SamplerState sampler0 = View.SharedPointClampedSampler;
+
+	// Controls kernel diameter
+	const int _KernelSize = 10;
+	// Controls kernel segments
+	const int _N = 8;
+
+	// Controls high frequency detail
+	const float _Hardness = 1.0;
+	// Controls sharpness of "paint splotches"
+	const float _Sharpness = 16.0;
+	// Controls alpha value
+	const float _Alpha = 1.0;
+	// Controls kernel threshold
+	const float _ZeroCrossing = 0.58;
+	// Controls polynomial weights distribution, high numbers equivalent to blurring image
+	const float _Zeta = 0.1;
+
+	// Kuwahara Filter
+	int radius = _KernelSize / 2;
+	float a = float((radius)) * clamp((_Alpha + A) / _Alpha, 0.1, 2.0);
+	float b = float((radius)) * clamp(_Alpha / (_Alpha + A), 0.1, 2.0);
+	
+	// Displace kernel
+	float cos_phi = cos(phi);
+	float sin_phi = sin(phi);
+	
+	float2x2 R = float2x2(float2(cos_phi, -sin_phi), float2(sin_phi, cos_phi));
+	float2x2 S = float2x2(float2(0.5 / a, 0.0), float2(0.0, 0.5 / b));
+	
+	float2x2 SR = S * R;
+	
+	
+	// Find kernel radius
+	int max_x = int(sqrt(a * a * cos_phi * cos_phi + b * b * sin_phi * sin_phi));
+	int max_y = int(sqrt(a * a * sin_phi * sin_phi + b * b * cos_phi * cos_phi));
+	
+	// Contrast threshold
+	float sinZeroCross = sin(_ZeroCrossing);
+	float eta = (_Zeta + cos(_ZeroCrossing)) / (sinZeroCross * sinZeroCross);
+	
+	// Initialize weighting matrices
+	float4 m[8];
+	float3 s[8];
+	
+	for (int k = 0; k < _N; k++)
+	{
+		m[k] = 0.0;
+		s[k] = 0.0;
+	}
+	
+	// Calculate Kuwahara filter weights
+	for (int y = -max_y; y <= max_y; y++)
+	{
+		for (int x = -max_x; x <= max_x; x++)
+		{
+			float2 vec = mul(SR, float2(float(x), float(y)));
+			// Calculates weight if within shifted radius
+			if (dot(vec, vec) <= 0.25)
+			{
+				float3 c = SceneColorTexture.Sample(sampler0, uv + float2(float(x), float(y)) * d).rgb;
+				c = clamp(c, 0.0, 1.0);
+				float sum = 0.0;
+				float w[8];
+				float z, vxx, vyy;
+				
+				// Polynomial Weights
+				vxx = _Zeta - eta * vec.x * vec.x;
+				vyy = _Zeta - eta * vec.y * vec.y;
+				z = max(0, vec.y + vxx);
+				w[0] = z * z;
+				sum += w[0];
+				z = max(0, -vec.x + vyy);
+				w[2] = z * z;
+				sum += w[2];
+				z = max(0, -vec.y + vxx);
+				w[4] = z * z;
+				sum += w[4];
+				z = max(0, vec.x + vyy);
+				w[6] = z * z;
+				sum += w[6];
+				vec = sqrt(2.0) / 2.0 * float2(vec.x - vec.y, vec.x + vec.y);
+				vxx = _Zeta - eta * vec.x * vec.x;
+				vyy = _Zeta - eta * vec.y * vec.y;
+				z = max(0, vec.y + vxx);
+				w[1] = z * z;
+				sum += w[1];
+				z = max(0, -vec.x + vyy);
+				w[3] = z * z;
+				sum += w[3];
+				z = max(0, -vec.y + vxx);
+				w[5] = z * z;
+				sum += w[5];
+				z = max(0, vec.x + vyy);
+				w[7] = z * z;
+				sum += w[7];
+				
+				float g = exp(-3.125 * dot(vec, vec)) / sum;
+				
+				// Calculates polynomial weight
+				for (int k = 0; k < 8; k++)
+				{
+					float wk = w[k] * g;
+					m[k] += float4(c * wk, wk);
+					s[k] += c * c * wk;
+				}
+			}
+		}
+	}
+	
+	// Calculates output color
+	float4 output = 0.0;
+	for (int k = 0; k < _N; ++k)
+	{
+		m[k].rgb /= m[k].w;
+		s[k] = abs(s[k] / m[k].w - m[k].rgb * m[k].rgb);
+
+		float sigma2 = s[k].r + s[k].g + s[k].b;
+		float w = 1.0 / (1.0 + pow(_Hardness * 1000.0 * sigma2, 0.5 * _Sharpness));
+
+		output += float4(m[k].rgb * w, w);
+	}
+	// Normalize color output
+	return clamp(output / output.w, 0.0, 1.0);
+}
+
+
+
 float4 KuwaharaPS(
 	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
 #if ANISOTROPIC
-	return AnisotropicKuwahara(InUV);
+	float4 tfm = TangentFlowMapTexture.Sample(View.SharedPointClampedSampler, InUV);
+	return kuwahara(tfm.xy, tfm.w, tfm.z, ViewPort_ExtentInverse, InUV);
 #else
 	return GeneralizedKuwahara(InUV);
 #endif
