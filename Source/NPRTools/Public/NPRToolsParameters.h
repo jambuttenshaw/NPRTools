@@ -35,6 +35,9 @@ public:
 	UNPRToolsParametersDataAsset();
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
+	int32 NumBilateralFilterPasses;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
 	float SigmaD1;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
@@ -97,6 +100,7 @@ public:
 struct FNPRToolsParametersProxy
 {
 	// Bilateral filter parameters
+	int32 NumBilateralFilterPasses;
 	float SigmaD1;
 	float SigmaR1;
 	float SigmaD2;

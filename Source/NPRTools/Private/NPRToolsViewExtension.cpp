@@ -49,26 +49,6 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FSobelPassPS, "/NPRTools/Sobel.usf", "SobelPS", SF_Pixel);
 
 
-class FBlurEigenHorizontalPassPS : public FGlobalShader
-{
-public:
-	DECLARE_GLOBAL_SHADER(FBlurEigenHorizontalPassPS);
-	SHADER_USE_PARAMETER_STRUCT(FBlurEigenHorizontalPassPS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
-
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InTexture)
-
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-};
-
-IMPLEMENT_GLOBAL_SHADER(FBlurEigenHorizontalPassPS, "/NPRTools/EigenBlur.usf", "BlurEigenVerticalPS", SF_Pixel);
-
-
 class FBlurEigenVerticalPassPS : public FGlobalShader
 {
 public:
@@ -86,7 +66,27 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FBlurEigenVerticalPassPS, "/NPRTools/EigenBlur.usf", "BlurEigenHorizontalPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FBlurEigenVerticalPassPS, "/NPRTools/EigenBlur.usf", "BlurEigenVerticalPS", SF_Pixel);
+
+
+class FBlurEigenHorizontalPassPS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FBlurEigenHorizontalPassPS);
+	SHADER_USE_PARAMETER_STRUCT(FBlurEigenHorizontalPassPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InTexture)
+
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FBlurEigenHorizontalPassPS, "/NPRTools/EigenBlur.usf", "BlurEigenHorizontalPS", SF_Pixel);
 
 
 class FConvertYCCPassPS : public FGlobalShader
@@ -382,7 +382,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	);
 
 	// Perform bilateral filtering
-	for (int32 i = 0; i < 1; i++)
+	for (int32 i = 0; i < Parameters->NumBilateralFilterPasses; i++)
 	{
 		FBilateralPassPS::FPermutationDomain Permutation;
 		Permutation.Set<FBilateralPassPS::FBilateralDirectionTangent>(true);
