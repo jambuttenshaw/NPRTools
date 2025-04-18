@@ -269,11 +269,7 @@ void FNPRToolsViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamil
 
 bool FNPRToolsViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
-	if (CVarNPRToolsEnable.GetValueOnGameThread() && IsValid(WorldSubsystem))
-	{
-		return WorldSubsystem->ParametersProxy.Get() && WorldSubsystem->ParametersProxy->bEnable;
-	}
-	return false;
+	return CVarNPRToolsEnable.GetValueOnGameThread() && IsValid(WorldSubsystem);
 }
 
 
