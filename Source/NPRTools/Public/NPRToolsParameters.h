@@ -47,6 +47,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Global")
 	bool bEnable;
 
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
 	int32 NumBilateralFilterPasses;
 
@@ -91,17 +92,27 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Color Quantization")
 	float PhiColor;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Quantization")
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
 	bool bUseKuwahara;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Quantization")
-	bool bAnisotropicKuwahara;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
+	int32 KuwaharaKernelSize;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Quantization")
-	float KuwaharaRadius;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
+	float KuwaharaHardness;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Quantization")
-	float KuwaharaTuning;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
+	float KuwaharaSharpness;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
+	float KuwaharaAlpha;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
+	float KuwaharaZeroCrossing;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
+	float KuwaharaZeta;
 
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
@@ -140,9 +151,12 @@ struct FNPRToolsParametersProxy
 	float PhiColor;
 
 	bool bUseKuwahara;
-	bool bAnisotropicKuwahara;
-	float KuwaharaRadius;
-	float KuwaharaTuning;
+	int32 KuwaharaKernelSize;
+	float KuwaharaHardness;
+	float KuwaharaSharpness;
+	float KuwaharaAlpha;
+	float KuwaharaZeroCrossing;
+	float KuwaharaZeta;
 
 	// Composition parameters
 	ENPRToolsCompositionMode CompositionMode;

@@ -1,209 +1,50 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/ScreenPass.ush"
 
-#ifndef ANISOTROPIC
-#define ANISOTROPIC 1
-#endif
-
 
 SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 
-float Radius;
-float Tuning;
+// Controls kernel diameter
+int KernelSize = 8;
+
+// Controls high frequency detail
+float Hardness = 8.0;
+
+// Controls sharpness of "paint splotches"
+float Sharpness = 8.0;
+
+// Controls alpha value
+float Alpha = 1.0;
+
+// Controls kernel threshold
+float ZeroCrossing = 0.58;
+
+// Controls polynomial weights distribution, high numbers equivalent to blurring image
+float Zeta = 0.1;
 
 Texture2D<float4> SceneColorTexture;
 Texture2D<float4> GaussianLUTTexture;
 Texture2D<float4> TangentFlowMapTexture;
 
 
-float4 GeneralizedKuwahara(float2 InUV)
+// Anisotropic Kuwahara
+float4 KuwaharaPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
 {
-	const SamplerState sampler0 = View.SharedPointClampedSampler;
-
-	const int K = 8;
-	float4 mean[K];
-	float3 squaredMean[K];
-    //clear out 
-	for (int a = 0; a < K; ++a)
-	{
-		mean[a] = float4(0, 0, 0, 0);
-		squaredMean[a] = float3(0, 0, 0);
-	}
-    //get the wedge of the circle 2* pi / number 
-    
-	float Pi2OverK = 2 * 3.145926535897 / K;
-	float cosK = cos(Pi2OverK);
-	float sinK = sin(Pi2OverK);
-    
-    //rotation matrix for rotating from I to 1/K of the way around the circle
-    //will incrementally rotate around in loop rot 1/8 do calc rot 1/8 more do calc etc
-	float2x2 mat = float2x2(cosK, sinK, -sinK, cosK);
-    
-    
-    //may want to single loop this for unrolling optimization 
-    //if know g_radius is a lim of say 10 then  441 is the most loop   or 8 radius max 289  may choose to manually unroll k 8 loop
-    //int horVal = (2 * g_radius + 1);
-    //int totVal = (2 * g_radius + 1) * (2 * g_radius + 1); //-rad, 0 rad
-    //for(int i = 0; i < totVal; ++i)
-    //{
-    //    int yCounter = i / horVal - g_radius; //int division
-    //    int xCounter = i % horVal - g_radius;
-    //    //... continue
-    //}
-    
-	for (int j = -Radius; j <= Radius; ++j)
-	{
-		for (int i = -Radius; i < Radius; ++i)
-		{
-			float2 v = 0.5 * float2(i, j) / Radius.xx; //need v to be in [-0.5 to 0.5] range to fit into 0 to 1 later for uv sampling
-            //if inside the circle
-			if (dot(v, v) < 0.25) /// 0.25  = 0.5^2  since 0.5 is scaled before the dot aka the square-ing the unit circle line would be 1 but our scale //would be 0.25 if the above 0.5 was removed then it would check to 1
-			{
-				float3 color = SceneColorTexture.Sample(sampler0, InUV + float2(i, j) * ViewPort_ExtentInverse).rgb;
-
-				[unroll(8)]
-				for (int k = 0; k < K; ++k)
-				{
-                    //note needs ot be in the loop b/c we are going to rotate v every iteration 1/8 of the 2pi  would need nested for ph/theta in 3D
-					float w = GaussianLUTTexture.Sample(sampler0, float2(0.5, 0.5) + v).x; //v dependant on k
-					mean[k] += float4(color * w, w);
-					squaredMean[k] = float3(color * color * w);
-                    //v *= mat; //will inform next weight
-					v = mul(mat, v);
-				}
-			}
-		}
-	}
-
-	float4 output = float4(0, 0, 0, 0);
-    [unroll(8)]
-	for (int k = 0; k < K; ++k)
-	{
-		mean[k].rgb /= mean[k].w; //don't divide away the .w we still want that value
-		squaredMean[k] /= mean[k].w;
-		float sigma2 = squaredMean[k].r + squaredMean[k].g + squaredMean[k].b; //sum together
-		float sectionWeight = rcp(1 + pow(255 * sigma2, 0.5 * Tuning));
-		output += float4(mean[k].rgb * sectionWeight, sectionWeight);
-        
-	}
-	return float4(output.rgb / output.w, 1.0);
-}
-
-
-float4 AnisotropicKuwahara(float2 InUV)
-{
-	const SamplerState sampler0 = View.SharedPointClampedSampler;
-
-	const int K = 8;
-	float4 mean[K];
-	float3 squaredMean[K];
-    //clear out 
-	for (int a = 0; a < K; ++a)
-	{
-		mean[a] = float4(0, 0, 0, 0);
-		squaredMean[a] = float3(0, 0, 0);
-	}
-    
-    //get the wedge of the circle 2* pi / number 
-	const float Pi2OverK = 2 * 3.145926535897 / K;
-	float cosK = cos(Pi2OverK);
-	float sinK = sin(Pi2OverK);
-    
-    //rotation matrix for rotating from I to 1/K of the way around the circle
-    //will incrementally rotate around in loop rot 1/8 do calc rot 1/8 more do calc etc
-	float2x2 matX = float2x2(cosK, sinK, -sinK, cosK);
-    
-    //Now for the squishing and the rotating  SR matrices to turn ellipse back into a sphere/circle for texture reading
-	float4 tanFlowMap = TangentFlowMapTexture.Sample(sampler0, InUV);
-    //I need the phi and the aniso values   ansio is in z and phi is in w for me
-	float a_val = Radius * clamp((Tuning + tanFlowMap.z) / Tuning, 0.1, 2.0); //a is always the major axis b/c even if a is vert it will be [1,2] range with 90 rotate
-   
-	float b_val = Radius * clamp(Tuning / (Tuning + tanFlowMap.z), 0.1, 2.0); //minor [0.5, 1]
-    
-	float sinPhi = sin(tanFlowMap.w);
-	float cosPhi = cos(tanFlowMap.w); //
-    //x^2/a^2  + y^2/b^2 etc etc
-    
-	float2x2 matR = float2x2(cosPhi, -sinPhi, sinPhi, cosPhi);
-	float2x2 matS = float2x2(1.0f / (2.0f * a_val), 0.0, 0.0, 1.0f / (2.0f * b_val));
-	float2x2 matSR = matS * matR; //check order here if needed
-    
-	int2 Extremes = int2(int(sqrt(a_val * a_val * cosPhi * cosPhi + b_val * b_val * sinPhi * sinPhi)),
-    int(sqrt(b_val * b_val * cosPhi * cosPhi + a_val * a_val * sinPhi * sinPhi)));
-    
-	const int maxVal = 32;
-	for (int jVal = 0; jVal <= maxVal; ++jVal)
-	{
-		int j = -Extremes.y + jVal;
-        
-        //note doing this for gradient / unroll / branching compiler error in fxc
-        //may not be an issue in newer dxc
-        //also could rewrite as compute shader
-        //for(int i = -Extremes.x; i < Extremes.x; ++i)  so looping over the extremes (x and y) instead of 0 to max 
-		for (int iVal = 0; iVal < maxVal; ++iVal)
-		{
-			int i = -Extremes.x + iVal;
-           
-           // float2 v = 0.5 * float2(i, j) / Radius.xx; //need v to be in [-0.5 to 0.5] range to fit into 0 to 1 later for uv sampling
-			float2 v = mul(matSR, float2(i, j)); //see 
-            //if inside the circle
-			if (dot(v, v) < 0.25 && i < Extremes.x && j < Extremes.y) /// 0.25  = 0.5^2  since 0.5 is scaled before the dot aka the square-ing the unit circle line would be 1 but our scale //would be 0.25 if the above 0.5 was removed then it would check to 1
-			{
-				float3 color = SceneColorTexture.Sample(sampler0, InUV + float2(i, j) * ViewPort_ExtentInverse).rgb;
-                 [unroll(8)]
-				for (int k = 0; k < K; ++k)
-				{
-                    //note needs ot be in the loop b/c we are going to rotate v every iteration 1/8 of the 2pi  would need nested for ph/theta in 3D
-					float w = GaussianLUTTexture.Sample(sampler0, float2(0.5, 0.5) + v).x; //v dependant on k
-					mean[k] += float4(color * w, w);
-					squaredMean[k] = float3(color * color * w);
-                    //v *= mat; //will inform next weight
-					v = mul(matX, v);
-				}
-			}
-		}
-	}
-
-	float4 output = float4(0, 0, 0, 0);
-    [unroll(8)]
-	for (int k = 0; k < K; ++k)
-	{
-		mean[k].rgb /= mean[k].w; //don't divide away the .w we still want that value
-		squaredMean[k] /= mean[k].w;
-		float sigma2 = squaredMean[k].r + squaredMean[k].g + squaredMean[k].b; //sum together
-		float sectionWeight = rcp(1 + pow(255 * sigma2, 0.5 * Tuning));
-		output += float4(mean[k].rgb * sectionWeight, sectionWeight);
-	}
-
-	return float4(output.rgb / output.w, 1.0);
-}
-
-
-
-float4 kuwahara(float2 n, float phi, float A, float2 d, float2 uv)
-{
-	const SamplerState sampler0 = View.SharedPointClampedSampler;
-
-	// Controls kernel diameter
-	const int _KernelSize = 10;
 	// Controls kernel segments
 	const int _N = 8;
 
-	// Controls high frequency detail
-	const float _Hardness = 1.0;
-	// Controls sharpness of "paint splotches"
-	const float _Sharpness = 16.0;
-	// Controls alpha value
-	const float _Alpha = 1.0;
-	// Controls kernel threshold
-	const float _ZeroCrossing = 0.58;
-	// Controls polynomial weights distribution, high numbers equivalent to blurring image
-	const float _Zeta = 0.1;
+	const SamplerState sampler0 = View.SharedPointClampedSampler;
+
+	const float4 tfm = TangentFlowMapTexture.Sample(View.SharedPointClampedSampler, InUV);
+	const float A = tfm.z;
+	const float phi = tfm.w;
 
 	// Kuwahara Filter
-	int radius = _KernelSize / 2;
-	float a = float((radius)) * clamp((_Alpha + A) / _Alpha, 0.1, 2.0);
-	float b = float((radius)) * clamp(_Alpha / (_Alpha + A), 0.1, 2.0);
+	int radius = KernelSize / 2;
+	float a = float((radius)) * clamp((Alpha + A) / Alpha, 0.1, 2.0);
+	float b = float((radius)) * clamp(Alpha / (Alpha + A), 0.1, 2.0);
 	
 	// Displace kernel
 	float cos_phi = cos(phi);
@@ -220,8 +61,8 @@ float4 kuwahara(float2 n, float phi, float A, float2 d, float2 uv)
 	int max_y = int(sqrt(a * a * sin_phi * sin_phi + b * b * cos_phi * cos_phi));
 	
 	// Contrast threshold
-	float sinZeroCross = sin(_ZeroCrossing);
-	float eta = (_Zeta + cos(_ZeroCrossing)) / (sinZeroCross * sinZeroCross);
+	float sinZeroCross = sin(ZeroCrossing);
+	float eta = (Zeta + cos(ZeroCrossing)) / (sinZeroCross * sinZeroCross);
 	
 	// Initialize weighting matrices
 	float4 m[8];
@@ -242,15 +83,15 @@ float4 kuwahara(float2 n, float phi, float A, float2 d, float2 uv)
 			// Calculates weight if within shifted radius
 			if (dot(vec, vec) <= 0.25)
 			{
-				float3 c = SceneColorTexture.Sample(sampler0, uv + float2(float(x), float(y)) * d).rgb;
+				float3 c = SceneColorTexture.Sample(sampler0, InUV + float2(float(x), float(y)) * ViewPort_ExtentInverse).rgb;
 				c = clamp(c, 0.0, 1.0);
 				float sum = 0.0;
 				float w[8];
 				float z, vxx, vyy;
 				
 				// Polynomial Weights
-				vxx = _Zeta - eta * vec.x * vec.x;
-				vyy = _Zeta - eta * vec.y * vec.y;
+				vxx = Zeta - eta * vec.x * vec.x;
+				vyy = Zeta - eta * vec.y * vec.y;
 				z = max(0, vec.y + vxx);
 				w[0] = z * z;
 				sum += w[0];
@@ -264,8 +105,8 @@ float4 kuwahara(float2 n, float phi, float A, float2 d, float2 uv)
 				w[6] = z * z;
 				sum += w[6];
 				vec = sqrt(2.0) / 2.0 * float2(vec.x - vec.y, vec.x + vec.y);
-				vxx = _Zeta - eta * vec.x * vec.x;
-				vyy = _Zeta - eta * vec.y * vec.y;
+				vxx = Zeta - eta * vec.x * vec.x;
+				vyy = Zeta - eta * vec.y * vec.y;
 				z = max(0, vec.y + vxx);
 				w[1] = z * z;
 				sum += w[1];
@@ -300,24 +141,10 @@ float4 kuwahara(float2 n, float phi, float A, float2 d, float2 uv)
 		s[k] = abs(s[k] / m[k].w - m[k].rgb * m[k].rgb);
 
 		float sigma2 = s[k].r + s[k].g + s[k].b;
-		float w = 1.0 / (1.0 + pow(_Hardness * 1000.0 * sigma2, 0.5 * _Sharpness));
+		float w = 1.0 / (1.0 + pow(Hardness * 1000.0 * sigma2, 0.5 * Sharpness));
 
 		output += float4(m[k].rgb * w, w);
 	}
 	// Normalize color output
 	return clamp(output / output.w, 0.0, 1.0);
-}
-
-
-
-float4 KuwaharaPS(
-	float2 InUV : TEXCOORD0
-) : SV_Target0
-{
-#if ANISOTROPIC
-	float4 tfm = TangentFlowMapTexture.Sample(View.SharedPointClampedSampler, InUV);
-	return kuwahara(tfm.xy, tfm.w, tfm.z, ViewPort_ExtentInverse, InUV);
-#else
-	return GeneralizedKuwahara(InUV);
-#endif
 }

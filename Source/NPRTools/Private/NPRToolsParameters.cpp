@@ -28,9 +28,12 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	PhiColor = 3.4f;
 
 	bUseKuwahara = false;
-	bAnisotropicKuwahara = true;
-	KuwaharaRadius = 10.0f;
-	KuwaharaTuning = 8.0f;
+	KuwaharaKernelSize = 4;
+	KuwaharaHardness = 8.0f;
+	KuwaharaSharpness = 8.0f;
+	KuwaharaAlpha = 1.0f;
+	KuwaharaZeroCrossing = 0.58f;
+	KuwaharaZeta = 0.1f;
 
 	CompositionMode = ENPRToolsCompositionMode::ColourAndEdges;
 }

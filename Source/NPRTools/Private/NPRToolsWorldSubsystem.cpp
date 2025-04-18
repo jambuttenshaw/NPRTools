@@ -70,9 +70,12 @@ FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const 
 		TempProxy->PhiColor = ParamsAsset->PhiColor;
 
 		TempProxy->bUseKuwahara = ParamsAsset->bUseKuwahara;
-		TempProxy->bAnisotropicKuwahara = ParamsAsset->bAnisotropicKuwahara;
-		TempProxy->KuwaharaRadius = ParamsAsset->KuwaharaRadius;
-		TempProxy->KuwaharaTuning = ParamsAsset->KuwaharaTuning;
+		TempProxy->KuwaharaKernelSize = ParamsAsset->KuwaharaKernelSize;
+		TempProxy->KuwaharaHardness = ParamsAsset->KuwaharaHardness;
+		TempProxy->KuwaharaSharpness = ParamsAsset->KuwaharaSharpness;
+		TempProxy->KuwaharaAlpha = ParamsAsset->KuwaharaAlpha;
+		TempProxy->KuwaharaZeroCrossing = ParamsAsset->KuwaharaZeroCrossing;
+		TempProxy->KuwaharaZeta = ParamsAsset->KuwaharaZeta;
 
 		TempProxy->CompositionMode = ParamsAsset->CompositionMode;
 	}

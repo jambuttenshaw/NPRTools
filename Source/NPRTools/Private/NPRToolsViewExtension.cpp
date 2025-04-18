@@ -217,16 +217,17 @@ public:
 	DECLARE_GLOBAL_SHADER(FKuwaharaPassPS);
 	SHADER_USE_PARAMETER_STRUCT(FKuwaharaPassPS, FGlobalShader);
 
-	class FAnisotropic: SHADER_PERMUTATION_BOOL("ANISOTROPIC");
-	using FPermutationDomain = TShaderPermutationDomain<FAnisotropic>;
-
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
 
-		SHADER_PARAMETER(float, Radius)
-		SHADER_PARAMETER(float, Tuning)
+		SHADER_PARAMETER(int32, KernelSize)
+		SHADER_PARAMETER(float, Hardness)
+		SHADER_PARAMETER(float, Sharpness)
+		SHADER_PARAMETER(float, Alpha)
+		SHADER_PARAMETER(float, ZeroCrossing)
+		SHADER_PARAMETER(float, Zeta)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, SceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, GaussianLUTTexture)
@@ -490,22 +491,22 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 			}
 
 			// Run Kuwahara pass
-			FKuwaharaPassPS::FPermutationDomain Permutation;
-			Permutation.Set<FKuwaharaPassPS::FAnisotropic>(Parameters->bAnisotropicKuwahara);
-
 			AddPass.operator()<FKuwaharaPassPS>(
-				RDG_EVENT_NAME("Kuwahara(Anisotropic=%d)", Parameters->bAnisotropicKuwahara),
+				RDG_EVENT_NAME("Kuwahara"),
 				TempPingTexture,
 				[&](auto PassParameters)
 				{
-					PassParameters->Radius = Parameters->KuwaharaRadius;
-					PassParameters->Tuning = Parameters->KuwaharaTuning;
+					PassParameters->KernelSize = Parameters->KuwaharaKernelSize;
+					PassParameters->Hardness = Parameters->KuwaharaHardness;
+					PassParameters->Sharpness = Parameters->KuwaharaSharpness;
+					PassParameters->Alpha = Parameters->KuwaharaAlpha;
+					PassParameters->ZeroCrossing = Parameters->KuwaharaZeroCrossing;
+					PassParameters->Zeta = Parameters->KuwaharaZeta;
 
 					PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(SceneColorTexture);
 					PassParameters->GaussianLUTTexture = GraphBuilder.CreateSRV(LUT_RDG);
 					PassParameters->TangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
-				},
-				Permutation
+				}
 			);
 		}
 		else
