@@ -24,6 +24,16 @@
 	PhiColor = 3.4f;
 	 */
 
+
+UENUM(BlueprintType)
+enum class ENPRToolsCompositionMode : uint8
+{
+	ColourOnly = 0,
+	EdgesOnly = 1,
+	ColourAndEdges = 2
+};
+
+
 /**
  *
  */
@@ -41,16 +51,16 @@ public:
 	int32 NumBilateralFilterPasses;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
-	float SigmaD1;
+	float TangentSigmaD;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
-	float SigmaR1;
+	float TangentSigmaR;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
-	float SigmaD2;
+	float GradientSigmaD;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
-	float SigmaR2;
+	float GradientSigmaR;
 
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Difference of Gaussians")
@@ -95,10 +105,7 @@ public:
 
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
-	bool bNoEdges;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
-	bool bEdgesOnly;
+	ENPRToolsCompositionMode CompositionMode;
 };
 
 
@@ -138,8 +145,7 @@ struct FNPRToolsParametersProxy
 	float KuwaharaTuning;
 
 	// Composition parameters
-	bool bNoEdges;
-	bool bEdgesOnly;
+	ENPRToolsCompositionMode CompositionMode;
 };
 
 

@@ -460,7 +460,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		);
 	}
 
-	if (Parameters->bEnableQuantization && !Parameters->bEdgesOnly)
+	if (Parameters->bEnableQuantization && Parameters->CompositionMode != ENPRToolsCompositionMode::EdgesOnly)
 	{
 		if (Parameters->bUseKuwahara)
 		{
@@ -530,15 +530,15 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		AddCopyTexturePass(GraphBuilder, SceneColorTexture, TempPingTexture);
 	}
 
-	if (Parameters->bNoEdges)
+	if (Parameters->CompositionMode == ENPRToolsCompositionMode::ColourOnly)
 	{
 		AddCopyTexturePass(GraphBuilder, TempPingTexture, SceneColorTexture);
 	}
-	else if (Parameters->bEdgesOnly)
+	else if (Parameters->CompositionMode == ENPRToolsCompositionMode::EdgesOnly)
 	{
 		AddCopyTexturePass(GraphBuilder, TempPongTexture, SceneColorTexture);
 	}
-	else
+	else if (Parameters->CompositionMode == ENPRToolsCompositionMode::ColourAndEdges)
 	{
 		// Combine edges and quantized color
 		AddPass.operator()<FCombineEdgesPassPS>(
@@ -550,5 +550,9 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 				PassParameters->InEdgesTexture = GraphBuilder.CreateSRV(TempPongTexture);
 			}
 		);
+	}
+	else
+	{
+		UE_LOG(LogNPRTools, Error, TEXT("Invalid composition mode! Composition mode = %d"), static_cast<uint32>(Parameters->CompositionMode));
 	}
  }

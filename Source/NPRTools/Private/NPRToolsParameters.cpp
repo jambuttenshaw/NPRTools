@@ -9,10 +9,10 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 
 	NumBilateralFilterPasses = 1;
 
-	SigmaD1 = 3.0f;
-	SigmaR1 = 0.425f;
-	SigmaD2 = 0.34f;
-	SigmaR2 = 3.3f;
+	TangentSigmaD = 3.0f;
+	TangentSigmaR = 0.425f;
+	GradientSigmaD = 0.34f;
+	GradientSigmaR = 3.3f;
 
 	SigmaE = 1.0f;
 	K = 1.6f;
@@ -32,6 +32,5 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	KuwaharaRadius = 10.0f;
 	KuwaharaTuning = 8.0f;
 
-	bNoEdges = false;
-	bEdgesOnly = false;
+	CompositionMode = ENPRToolsCompositionMode::ColourAndEdges;
 }

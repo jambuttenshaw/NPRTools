@@ -4,6 +4,9 @@
 
 #define LOCTEXT_NAMESPACE "FNPRToolsModule"
 
+DEFINE_LOG_CATEGORY(LogNPRTools);
+
+
 void FNPRToolsModule::StartupModule()
 {
 	// Map our shader directory

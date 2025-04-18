@@ -48,10 +48,10 @@ FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const 
 		TempProxy->bEnable = ParamsAsset->bEnable;
 
 		TempProxy->NumBilateralFilterPasses = ParamsAsset->NumBilateralFilterPasses;
-		TempProxy->SigmaD1 = ParamsAsset->SigmaD1;
-		TempProxy->SigmaR1 = ParamsAsset->SigmaR1;
-		TempProxy->SigmaD2 = ParamsAsset->SigmaD2;
-		TempProxy->SigmaR2 = ParamsAsset->SigmaR2;
+		TempProxy->SigmaD1 = ParamsAsset->TangentSigmaD;
+		TempProxy->SigmaR1 = ParamsAsset->TangentSigmaR;
+		TempProxy->SigmaD2 = ParamsAsset->GradientSigmaD;
+		TempProxy->SigmaR2 = ParamsAsset->GradientSigmaR;
 
 		TempProxy->SigmaE = ParamsAsset->SigmaE;
 		TempProxy->K = ParamsAsset->K;
@@ -71,8 +71,7 @@ FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const 
 		TempProxy->KuwaharaRadius = ParamsAsset->KuwaharaRadius;
 		TempProxy->KuwaharaTuning = ParamsAsset->KuwaharaTuning;
 
-		TempProxy->bNoEdges = ParamsAsset->bNoEdges;
-		TempProxy->bEdgesOnly = ParamsAsset->bEdgesOnly;
+		TempProxy->CompositionMode = ParamsAsset->CompositionMode;
 	}
 
 	return TempProxy;
