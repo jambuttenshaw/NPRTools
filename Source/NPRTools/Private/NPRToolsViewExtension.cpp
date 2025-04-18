@@ -169,7 +169,7 @@ public:
 	DECLARE_GLOBAL_SHADER(FDoGFlowPassPS);
 	SHADER_USE_PARAMETER_STRUCT(FDoGFlowPassPS, FGlobalShader);
 
-	class FThresholdingMethod : public SHADER_PERMUTATION_INT("THRESHOLDING_METHOD", 2);
+	class FThresholdingMethod : SHADER_PERMUTATION_INT("THRESHOLDING_METHOD", 2);
 	using FPermutationDomain = TShaderPermutationDomain<FThresholdingMethod>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
