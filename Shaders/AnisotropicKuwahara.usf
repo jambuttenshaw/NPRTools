@@ -1,0 +1,103 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+
+float Radius;
+float Tuning;
+
+Texture2D<float4> SceneColorTexture;
+Texture2D<float4> GaussianLUTTexture;
+Texture2D<float4> TangentFlowMapTexture;
+
+
+float4 AnisotropicKuwaharaPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+	const SamplerState sampler0 = View.SharedPointClampedSampler;
+
+	const int K = 8;
+	float4 mean[K];
+	float3 squaredMean[K];
+    //clear out 
+	for (int a = 0; a < K; ++a)
+	{
+		mean[a] = float4(0, 0, 0, 0);
+		squaredMean[a] = float3(0, 0, 0);
+	}
+    
+    //get the wedge of the circle 2* pi / number 
+	const float Pi2OverK = 2 * 3.145926535897 / K;
+	float cosK = cos(Pi2OverK);
+	float sinK = sin(Pi2OverK);
+    
+    //rotation matrix for rotating from I to 1/K of the way around the circle
+    //will incrementally rotate around in loop rot 1/8 do calc rot 1/8 more do calc etc
+	float2x2 matX = float2x2(cosK, sinK, -sinK, cosK);
+    
+    //Now for the squishing and the rotating  SR matrices to turn ellipse back into a sphere/circle for texture reading
+	float4 tanFlowMap = TangentFlowMapTexture.Sample(sampler0, InUV);
+    //I need the phi and the aniso values   ansio is in z and phi is in w for me
+	float a_val = Radius * clamp((Tuning + tanFlowMap.z) / Tuning, 0.1, 2.0); //a is always the major axis b/c even if a is vert it will be [1,2] range with 90 rotate
+   
+	float b_val = Radius * clamp(Tuning / (Tuning + tanFlowMap.z), 0.1, 2.0); //minor [0.5, 1]
+    
+	float sinPhi = sin(tanFlowMap.w);
+	float cosPhi = cos(tanFlowMap.w); //
+    //x^2/a^2  + y^2/b^2 etc etc
+    
+	float2x2 matR = float2x2(cosPhi, -sinPhi, sinPhi, cosPhi);
+	float2x2 matS = float2x2(1.0f / (2.0f * a_val), 0.0, 0.0, 1.0f / (2.0f * b_val));
+	float2x2 matSR = matS * matR; //check order here if needed
+    
+	int2 Extremes = int2(int(sqrt(a_val * a_val * cosPhi * cosPhi + b_val * b_val * sinPhi * sinPhi)),
+    int(sqrt(b_val * b_val * cosPhi * cosPhi + a_val * a_val * sinPhi * sinPhi)));
+    
+	const int maxVal = 32;
+	for (int jVal = 0; jVal <= maxVal; ++jVal)
+	{
+		int j = -Extremes.y + jVal;
+        
+        //note doing this for gradient / unroll / branching compiler error in fxc
+        //may not be an issue in newer dxc
+        //also could rewrite as compute shader
+        //for(int i = -Extremes.x; i < Extremes.x; ++i)  so looping over the extremes (x and y) instead of 0 to max 
+		for (int iVal = 0; iVal < maxVal; ++iVal)
+		{
+			int i = -Extremes.x + iVal;
+           
+           // float2 v = 0.5 * float2(i, j) / Radius.xx; //need v to be in [-0.5 to 0.5] range to fit into 0 to 1 later for uv sampling
+			float2 v = mul(matSR, float2(i, j)); //see 
+            //if inside the circle
+			if (dot(v, v) < 0.25 && i < Extremes.x && j < Extremes.y) /// 0.25  = 0.5^2  since 0.5 is scaled before the dot aka the square-ing the unit circle line would be 1 but our scale //would be 0.25 if the above 0.5 was removed then it would check to 1
+			{
+				float3 color = SceneColorTexture.Sample(sampler0, InUV + float2(i, j) * ViewPort_ExtentInverse).rgb;
+                 [unroll(8)]
+				for (int k = 0; k < K; ++k)
+				{
+                    //note needs ot be in the loop b/c we are going to rotate v every iteration 1/8 of the 2pi  would need nested for ph/theta in 3D
+					float w = GaussianLUTTexture.Sample(sampler0, float2(0.5, 0.5) + v).x; //v dependant on k
+					mean[k] += float4(color * w, w);
+					squaredMean[k] = float3(color * color * w);
+                    //v *= mat; //will inform next weight
+					v = mul(matX, v);
+				}
+			}
+		}
+	}
+
+	float4 output = float4(0, 0, 0, 0);
+    [unroll(8)]
+	for (int k = 0; k < K; ++k)
+	{
+		mean[k].rgb /= mean[k].w; //don't divide away the .w we still want that value
+		squaredMean[k] /= mean[k].w;
+		float sigma2 = squaredMean[k].r + squaredMean[k].g + squaredMean[k].b; //sum together
+		float sectionWeight = rcp(1 + pow(255 * sigma2, 0.5 * Tuning));
+		output += float4(mean[k].rgb * sectionWeight, sectionWeight);
+	}
+
+	return float4(output.rgb / output.w, 1.0);
+}
