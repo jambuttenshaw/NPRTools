@@ -85,6 +85,9 @@ public:
 	bool bUseKuwahara;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Quantization")
+	bool bAnisotropicKuwahara;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Quantization")
 	float KuwaharaRadius;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Quantization")
@@ -128,7 +131,9 @@ struct FNPRToolsParametersProxy
 	bool bEnableQuantization;
 	int32 NumBins;
 	float PhiColor;
+
 	bool bUseKuwahara;
+	bool bAnisotropicKuwahara;
 	float KuwaharaRadius;
 	float KuwaharaTuning;
 

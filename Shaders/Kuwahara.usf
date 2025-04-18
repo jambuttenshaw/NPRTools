@@ -12,9 +12,81 @@ Texture2D<float4> GaussianLUTTexture;
 Texture2D<float4> TangentFlowMapTexture;
 
 
-float4 AnisotropicKuwaharaPS(
-	float2 InUV : TEXCOORD0
-) : SV_Target0
+float4 GeneralizedKuwahara(float2 InUV)
+{
+	const SamplerState sampler0 = View.SharedPointClampedSampler;
+
+	const int K = 8;
+	float4 mean[K];
+	float3 squaredMean[K];
+    //clear out 
+	for (int a = 0; a < K; ++a)
+	{
+		mean[a] = float4(0, 0, 0, 0);
+		squaredMean[a] = float3(0, 0, 0);
+	}
+    //get the wedge of the circle 2* pi / number 
+    
+	float Pi2OverK = 2 * 3.145926535897 / K;
+	float cosK = cos(Pi2OverK);
+	float sinK = sin(Pi2OverK);
+    
+    //rotation matrix for rotating from I to 1/K of the way around the circle
+    //will incrementally rotate around in loop rot 1/8 do calc rot 1/8 more do calc etc
+	float2x2 mat = float2x2(cosK, sinK, -sinK, cosK);
+    
+    
+    //may want to single loop this for unrolling optimization 
+    //if know g_radius is a lim of say 10 then  441 is the most loop   or 8 radius max 289  may choose to manually unroll k 8 loop
+    //int horVal = (2 * g_radius + 1);
+    //int totVal = (2 * g_radius + 1) * (2 * g_radius + 1); //-rad, 0 rad
+    //for(int i = 0; i < totVal; ++i)
+    //{
+    //    int yCounter = i / horVal - g_radius; //int division
+    //    int xCounter = i % horVal - g_radius;
+    //    //... continue
+    //}
+    
+	for (int j = -Radius; j <= Radius; ++j)
+	{
+		for (int i = -Radius; i < Radius; ++i)
+		{
+			float2 v = 0.5 * float2(i, j) / Radius.xx; //need v to be in [-0.5 to 0.5] range to fit into 0 to 1 later for uv sampling
+            //if inside the circle
+			if (dot(v, v) < 0.25) /// 0.25  = 0.5^2  since 0.5 is scaled before the dot aka the square-ing the unit circle line would be 1 but our scale //would be 0.25 if the above 0.5 was removed then it would check to 1
+			{
+				float3 color = SceneColorTexture.Sample(sampler0, InUV + float2(i, j) * ViewPort_ExtentInverse).rgb;
+
+				[unroll(8)]
+				for (int k = 0; k < K; ++k)
+				{
+                    //note needs ot be in the loop b/c we are going to rotate v every iteration 1/8 of the 2pi  would need nested for ph/theta in 3D
+					float w = GaussianLUTTexture.Sample(sampler0, float2(0.5, 0.5) + v).x; //v dependant on k
+					mean[k] += float4(color * w, w);
+					squaredMean[k] = float3(color * color * w);
+                    //v *= mat; //will inform next weight
+					v = mul(mat, v);
+				}
+			}
+		}
+	}
+
+	float4 output = float4(0, 0, 0, 0);
+    [unroll(8)]
+	for (int k = 0; k < K; ++k)
+	{
+		mean[k].rgb /= mean[k].w; //don't divide away the .w we still want that value
+		squaredMean[k] /= mean[k].w;
+		float sigma2 = squaredMean[k].r + squaredMean[k].g + squaredMean[k].b; //sum together
+		float sectionWeight = rcp(1 + pow(255 * sigma2, 0.5 * Tuning));
+		output += float4(mean[k].rgb * sectionWeight, sectionWeight);
+        
+	}
+	return float4(output.rgb / output.w, 1.0);
+}
+
+
+float4 AnisotropicKuwahara(float2 InUV)
 {
 	const SamplerState sampler0 = View.SharedPointClampedSampler;
 
@@ -100,4 +172,16 @@ float4 AnisotropicKuwaharaPS(
 	}
 
 	return float4(output.rgb / output.w, 1.0);
+}
+
+
+float4 KuwaharaPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+#if ANISOTROPIC
+	return AnisotropicKuwahara(InUV);
+#else
+	return GeneralizedKuwahara(InUV);
+#endif
 }

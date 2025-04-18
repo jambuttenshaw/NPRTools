@@ -28,6 +28,8 @@ namespace NPRTools
 	}
 }
 
+DECLARE_GPU_STAT_NAMED(NPRToolsStat, TEXT("NPRTools"));
+
 
 class FSobelPassPS : public FGlobalShader
 {
@@ -209,11 +211,14 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FQuantizePassPS, "/NPRTools/Quantize.usf", "QuantizePS", SF_Pixel);
 
 
-class FAnisotropicKuwaharaPassPS : public FGlobalShader
+class FKuwaharaPassPS : public FGlobalShader
 {
 public:
-	DECLARE_GLOBAL_SHADER(FAnisotropicKuwaharaPassPS);
-	SHADER_USE_PARAMETER_STRUCT(FAnisotropicKuwaharaPassPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FKuwaharaPassPS);
+	SHADER_USE_PARAMETER_STRUCT(FKuwaharaPassPS, FGlobalShader);
+
+	class FAnisotropic: SHADER_PERMUTATION_BOOL("ANISOTROPIC");
+	using FPermutationDomain = TShaderPermutationDomain<FAnisotropic>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -231,7 +236,7 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FAnisotropicKuwaharaPassPS, "/NPRTools/AnisotropicKuwahara.usf", "AnisotropicKuwaharaPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FKuwaharaPassPS, "/NPRTools/Kuwahara.usf", "KuwaharaPS", SF_Pixel);
 
 
 class FCombineEdgesPassPS : public FGlobalShader
@@ -284,6 +289,10 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	FNPRToolsParametersProxy* Parameters = WorldSubsystem->ParametersProxy.Get();
 	if (!Parameters->bEnable)
 		return;
+
+	RDG_EVENT_SCOPE_STAT(GraphBuilder, NPRToolsStat, "NPRTools");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, NPRToolsStat);
+	SCOPED_NAMED_EVENT(NPRTools, FColor::Purple);
 
 	// Get the scene colour texture from the post process inputs
 	Inputs.Validate();
@@ -340,7 +349,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	// Calculate tangent flow map
 	{
 		AddPass.operator()<FSobelPassPS>(
-			RDG_EVENT_NAME("NPRTools_SobelFilter"),
+			RDG_EVENT_NAME("Sobel"),
 			TangentFlowMapTexture,
 			[&](auto PassParameters)
 			{
@@ -349,7 +358,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		);
 
 		AddPass.operator()<FBlurEigenVerticalPassPS>(
-			RDG_EVENT_NAME("NPRTools_EigenBlurVertical"),
+			RDG_EVENT_NAME("EigenBlur(Vertical)"),
 			TempPingTexture,
 			[&](auto PassParameters)
 			{
@@ -358,7 +367,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		);
 
 		AddPass.operator()<FBlurEigenHorizontalPassPS>(
-			RDG_EVENT_NAME("NPRTools_EigenBlurHorizontal"),
+			RDG_EVENT_NAME("EigenBlur(Horizontal)"),
 			TangentFlowMapTexture,
 			[&](auto PassParameters)
 			{
@@ -368,7 +377,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	}
 
 	AddPass.operator()<FConvertYCCPassPS>(
-		RDG_EVENT_NAME("NPRTools_ConvertYCC"),
+		RDG_EVENT_NAME("ConvertYCC"),
 		TempPongTexture,
 		[&](auto PassParameters)
 		{
@@ -390,7 +399,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		Permutation.Set<FBilateralPassPS::FBilateralDirectionTangent>(true);
 
 		AddPass.operator()<FBilateralPassPS>(
-			RDG_EVENT_NAME("NPRTools_BilateralTangent"),
+			RDG_EVENT_NAME("Bilateral(Tangent)"),
 			TempPingTexture,
 			[&](auto PassParameters)
 			{
@@ -406,7 +415,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		Permutation.Set<FBilateralPassPS::FBilateralDirectionTangent>(false);
 
 		AddPass.operator()<FBilateralPassPS>(
-			RDG_EVENT_NAME("NPRTools_BilateralGradient"),
+			RDG_EVENT_NAME("Bilateral(Gradient)"),
 			ColorChangeTexture,
 			[&](auto PassParameters)
 			{
@@ -423,7 +432,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	// Perform Difference of Gaussians
 	{
 		AddPass.operator()<FDoGGradientPassPS>(
-			RDG_EVENT_NAME("NPRTools_DoGGradient"),
+			RDG_EVENT_NAME("DoG(Gradient)"),
 			TempPingTexture,
 			[&](auto PassParameters)
 			{
@@ -437,7 +446,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		);
 
 		AddPass.operator()<FDoGFlowPassPS>(
-			RDG_EVENT_NAME("NPRTools_DoGFlow"),
+			RDG_EVENT_NAME("DoG(Flow)"),
 			TempPongTexture,
 			[&](auto PassParameters)
 			{
@@ -481,8 +490,11 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 			}
 
 			// Run Kuwahara pass
-			AddPass.operator()<FAnisotropicKuwaharaPassPS>(
-				RDG_EVENT_NAME("NPRTools_AnisotropicKuwahara"),
+			FKuwaharaPassPS::FPermutationDomain Permutation;
+			Permutation.Set<FKuwaharaPassPS::FAnisotropic>(Parameters->bAnisotropicKuwahara);
+
+			AddPass.operator()<FKuwaharaPassPS>(
+				RDG_EVENT_NAME("Kuwahara(Anisotropic=%d)", Parameters->bAnisotropicKuwahara),
 				TempPingTexture,
 				[&](auto PassParameters)
 				{
@@ -492,14 +504,15 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 					PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(SceneColorTexture);
 					PassParameters->GaussianLUTTexture = GraphBuilder.CreateSRV(LUT_RDG);
 					PassParameters->TangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
-				}
+				},
+				Permutation
 			);
 		}
 		else
 		{
 			// Perform Quantization
 			AddPass.operator()<FQuantizePassPS>(
-				RDG_EVENT_NAME("NPRTools_Quantization"),
+				RDG_EVENT_NAME("Quantization"),
 				TempPingTexture,
 				[&](auto PassParameters)
 				{
@@ -529,7 +542,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	{
 		// Combine edges and quantized color
 		AddPass.operator()<FCombineEdgesPassPS>(
-			RDG_EVENT_NAME("NPRTools_CombineEdges"),
+			RDG_EVENT_NAME("CombineEdges"),
 			SceneColorTexture,
 			[&](auto PassParameters)
 			{
