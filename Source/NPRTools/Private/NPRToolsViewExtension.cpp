@@ -269,7 +269,11 @@ void FNPRToolsViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamil
 
 bool FNPRToolsViewExtension::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
 {
-	return (CVarNPRToolsEnable.GetValueOnGameThread()) && IsValid(WorldSubsystem);
+	if (CVarNPRToolsEnable.GetValueOnGameThread() && IsValid(WorldSubsystem))
+	{
+		return WorldSubsystem->ParametersProxy.Get() && WorldSubsystem->ParametersProxy->bEnable;
+	}
+	return false;
 }
 
 
@@ -282,6 +286,8 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		return;
 
 	FNPRToolsParametersProxy* Parameters = WorldSubsystem->ParametersProxy.Get();
+	if (!Parameters->bEnable)
+		return;
 
 	// Get the scene colour texture from the post process inputs
 	Inputs.Validate();

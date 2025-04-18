@@ -5,6 +5,8 @@
 
 UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 {
+	bEnable = true;
+
 	NumBilateralFilterPasses = 1;
 
 	SigmaD1 = 3.0f;

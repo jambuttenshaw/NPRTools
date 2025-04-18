@@ -45,6 +45,8 @@ FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const 
 	{
 		TempProxy = MakeShared<FNPRToolsParametersProxy>();
 
+		TempProxy->bEnable = ParamsAsset->bEnable;
+
 		TempProxy->NumBilateralFilterPasses = ParamsAsset->NumBilateralFilterPasses;
 		TempProxy->SigmaD1 = ParamsAsset->SigmaD1;
 		TempProxy->SigmaR1 = ParamsAsset->SigmaR1;

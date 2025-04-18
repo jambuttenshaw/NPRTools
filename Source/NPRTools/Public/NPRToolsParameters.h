@@ -34,6 +34,9 @@ class NPRTOOLS_API UNPRToolsParametersDataAsset : public UDataAsset
 public:
 	UNPRToolsParametersDataAsset();
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Global")
+	bool bEnable;
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
 	int32 NumBilateralFilterPasses;
 
@@ -99,6 +102,9 @@ public:
 // Render thread representation of parameters controlling NPR FX
 struct FNPRToolsParametersProxy
 {
+	// Global parameters
+	bool bEnable;
+
 	// Bilateral filter parameters
 	int32 NumBilateralFilterPasses;
 	float SigmaD1;
