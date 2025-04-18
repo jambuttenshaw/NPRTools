@@ -33,6 +33,13 @@ enum class ENPRToolsCompositionMode : uint8
 	ColourAndEdges = 2
 };
 
+UENUM(BlueprintType)
+enum class ENPRToolsDifferenceOfGaussiansThresholdingMethod: uint8
+{
+	Binary = 0,
+	HyperbolicTangent = 1
+};
+
 
 /**
  *
@@ -75,6 +82,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Flow-Based Difference of Gaussians")
 	float SigmaM;
 
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Difference of Gaussians Thresholding")
+	ENPRToolsDifferenceOfGaussiansThresholdingMethod ThresholdingMethod;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Difference of Gaussians Thresholding")
 	float Epsilon;
@@ -142,6 +152,7 @@ struct FNPRToolsParametersProxy
 	float SigmaM;
 
 	// Thresholding parameters
+	ENPRToolsDifferenceOfGaussiansThresholdingMethod ThresholdingMethod;
 	float Epsilon;
 	float PhiEdge;
 

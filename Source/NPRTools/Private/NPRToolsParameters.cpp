@@ -20,6 +20,7 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 
 	SigmaM = 3.0f;
 
+	ThresholdingMethod = ENPRToolsDifferenceOfGaussiansThresholdingMethod::HyperbolicTangent;
 	Epsilon = 0.1f;
 	PhiEdge = 3.4f;
 

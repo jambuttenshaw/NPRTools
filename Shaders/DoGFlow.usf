@@ -2,6 +2,11 @@
 #include "/Engine/Private/ScreenPass.ush"
 
 
+#ifndef THRESHOLDING_METHOD
+#define THRESHOLDING_METHOD 0
+#endif
+
+
 SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 
 float SigmaM;
@@ -86,9 +91,11 @@ float4 DoGFlowPS(
 
 	sum /= weight;
 
-	//float edge = sum > 0.0 ? 1.0 : 2.0 * smoothstep(-2, 2, phi * sum); //this is wrong need an epsi
-	// float edge = sum > 0.001 ? 1.0 : 0;
+#if THRESHOLDING_METHOD == 0
+	float edge = sum >= Epsilon ? 1.0 : 0;
+#elif THRESHOLDING_METHOD == 1
 	float edge = sum >= Epsilon ? 1.0 : 1 + tanh(Phi * (sum - Epsilon));
+#endif
 
 	return float4(edge, edge, edge, 1);
 }

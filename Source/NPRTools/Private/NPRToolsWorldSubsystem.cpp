@@ -62,6 +62,7 @@ FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const 
 
 		TempProxy->SigmaM = ParamsAsset->SigmaM;
 
+		TempProxy->ThresholdingMethod = ParamsAsset->ThresholdingMethod;
 		TempProxy->Epsilon = ParamsAsset->Epsilon;
 		TempProxy->PhiEdge = ParamsAsset->PhiEdge;
 

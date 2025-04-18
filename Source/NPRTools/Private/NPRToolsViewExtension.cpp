@@ -169,6 +169,9 @@ public:
 	DECLARE_GLOBAL_SHADER(FDoGFlowPassPS);
 	SHADER_USE_PARAMETER_STRUCT(FDoGFlowPassPS, FGlobalShader);
 
+	class FThresholdingMethod : public SHADER_PERMUTATION_INT("THRESHOLDING_METHOD", 2);
+	using FPermutationDomain = TShaderPermutationDomain<FThresholdingMethod>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
@@ -446,6 +449,8 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 			}
 		);
 
+		FDoGFlowPassPS::FPermutationDomain Permutation;
+		Permutation.Set<FDoGFlowPassPS::FThresholdingMethod>(static_cast<int>(Parameters->ThresholdingMethod));
 		AddPass.operator()<FDoGFlowPassPS>(
 			RDG_EVENT_NAME("DoG(Flow)"),
 			TempPongTexture,
@@ -457,7 +462,8 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 
 				PassParameters->InDoGGradientTexture = GraphBuilder.CreateSRV(TempPingTexture);
 				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
-			}
+			},
+			Permutation
 		);
 	}
 
