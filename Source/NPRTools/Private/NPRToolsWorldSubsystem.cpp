@@ -21,8 +21,12 @@ void UNPRToolsWorldSubsystem::TransferState()
 {
 	// Get params asset from world settings
 	const UNPRToolsParametersDataAsset* ParamsAsset = nullptr;
-	
-	if (AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings())
+
+	if (ParamsAssetOverride)
+	{
+		ParamsAsset = ParamsAssetOverride;
+	}
+	else if (AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings())
 	{
 		if (INPRWorldSettingsInterface* NPRSettingsInterface = Cast<INPRWorldSettingsInterface>(WorldSettings))
 		{
@@ -38,6 +42,11 @@ void UNPRToolsWorldSubsystem::TransferState()
 	{
 		ParametersProxy = TempProxy;
 	});
+}
+
+void UNPRToolsWorldSubsystem::OverrideNPRParametersAsset(UNPRToolsParametersDataAsset* ParamsAsset)
+{
+	ParamsAssetOverride = ParamsAsset;
 }
 
 

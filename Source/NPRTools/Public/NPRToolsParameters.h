@@ -44,7 +44,7 @@ enum class ENPRToolsDifferenceOfGaussiansThresholdingMethod: uint8
 /**
  *
  */
-UCLASS()
+UCLASS(BlueprintType)
 class NPRTOOLS_API UNPRToolsParametersDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
