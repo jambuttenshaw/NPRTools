@@ -233,7 +233,6 @@ public:
 		SHADER_PARAMETER(float, Zeta)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, SceneColorTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, GaussianLUTTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, TangentFlowMapTexture)
 
 		RENDER_TARGET_BINDING_SLOTS()
@@ -267,7 +266,6 @@ FNPRToolsViewExtension::FNPRToolsViewExtension(const FAutoRegister& AutoRegister
 	: FSceneViewExtensionBase(AutoRegister)
 	, WorldSubsystem(InWorldSubsystem)
 {
-	GaussianLUT = LoadObject<UTexture2D>(nullptr, TEXT("/Script/Engine.Texture2D'/NPRTools/Textures/T_KDE.T_KDE'"));
 }
 
 void FNPRToolsViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
@@ -474,31 +472,6 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	{
 		if (Parameters->bUseKuwahara)
 		{
-			// Register Gaussian kernel LUT into RDG
-			FRDGTextureRef LUT_RDG = GSystemTextures.GetBlackDummy(GraphBuilder);
-			if (GaussianLUT.IsValid(false, true) && GaussianLUT->GetResource())
-			{
-				FTextureRHIRef LUT_RHI = GaussianLUT->GetResource()->TextureRHI;
-
-				// Register external texture to RDG;
-				FPooledRenderTargetDesc desc = FPooledRenderTargetDesc::Create2DDesc(
-					LUT_RHI->GetSizeXY(),
-					LUT_RHI->GetFormat(),
-					FClearValueBinding::Black,
-					TexCreate_None,
-					TexCreate_ShaderResource,
-					false,
-					LUT_RHI->GetNumMips());
-
-				FSceneRenderTargetItem renderTargetItem;
-				renderTargetItem.TargetableTexture = LUT_RHI;
-				renderTargetItem.ShaderResourceTexture = LUT_RHI;
-
-				TRefCountPtr<IPooledRenderTarget> PhaseFunctionLUT_RT;
-				GRenderTargetPool.CreateUntrackedElement(desc, PhaseFunctionLUT_RT, renderTargetItem);
-				LUT_RDG = GraphBuilder.RegisterExternalTexture(PhaseFunctionLUT_RT);
-			}
-
 			// Run Kuwahara pass
 			AddPass.operator()<FKuwaharaPassPS>(
 				RDG_EVENT_NAME("Kuwahara"),
@@ -513,7 +486,6 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 					PassParameters->Zeta = Parameters->KuwaharaZeta;
 
 					PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(SceneColorTexture);
-					PassParameters->GaussianLUTTexture = GraphBuilder.CreateSRV(LUT_RDG);
 					PassParameters->TangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
 				}
 			);

@@ -23,7 +23,6 @@ float ZeroCrossing = 0.58;
 float Zeta = 0.1;
 
 Texture2D<float4> SceneColorTexture;
-Texture2D<float4> GaussianLUTTexture;
 Texture2D<float4> TangentFlowMapTexture;
 
 

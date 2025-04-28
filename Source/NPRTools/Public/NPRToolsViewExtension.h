@@ -26,6 +26,4 @@ public:
 
 private:
 	UNPRToolsWorldSubsystem* WorldSubsystem;
-
-	TWeakObjectPtr<UTexture> GaussianLUT;
 };
