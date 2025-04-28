@@ -36,5 +36,6 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	KuwaharaZeroCrossing = 0.58f;
 	KuwaharaZeta = 0.1f;
 
-	CompositionMode = ENPRToolsCompositionMode::ColourAndEdges;
+	bCompositeColor = true;
+	bCompositeEdges = true;
 }

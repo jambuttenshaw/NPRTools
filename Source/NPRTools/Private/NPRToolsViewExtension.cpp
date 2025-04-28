@@ -294,6 +294,9 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	if (!Parameters->bEnable)
 		return;
 
+	if (!(Parameters->bCompositeColor || Parameters->bCompositeEdges))
+		return;
+
 	RDG_EVENT_SCOPE_STAT(GraphBuilder, NPRToolsStat, "NPRTools");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NPRToolsStat);
 	SCOPED_NAMED_EVENT(NPRTools, FColor::Purple);
@@ -467,7 +470,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		);
 	}
 
-	if (Parameters->bEnableQuantization && Parameters->CompositionMode != ENPRToolsCompositionMode::EdgesOnly)
+	if (Parameters->bEnableQuantization && Parameters->bCompositeColor)
 	{
 		if (Parameters->bUseKuwahara)
 		{
@@ -537,15 +540,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 		AddCopyTexturePass(GraphBuilder, SceneColorTexture, TempPingTexture);
 	}
 
-	if (Parameters->CompositionMode == ENPRToolsCompositionMode::ColourOnly)
-	{
-		AddCopyTexturePass(GraphBuilder, TempPingTexture, SceneColorTexture);
-	}
-	else if (Parameters->CompositionMode == ENPRToolsCompositionMode::EdgesOnly)
-	{
-		AddCopyTexturePass(GraphBuilder, TempPongTexture, SceneColorTexture);
-	}
-	else if (Parameters->CompositionMode == ENPRToolsCompositionMode::ColourAndEdges)
+	if (Parameters->bCompositeColor && Parameters->bCompositeEdges)
 	{
 		// Combine edges and quantized color
 		AddPass.operator()<FCombineEdgesPassPS>(
@@ -558,8 +553,16 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 			}
 		);
 	}
+	else if (Parameters->bCompositeColor)
+	{
+		AddCopyTexturePass(GraphBuilder, TempPingTexture, SceneColorTexture);
+	}
+	else if (Parameters->bCompositeEdges)
+	{
+		AddCopyTexturePass(GraphBuilder, TempPongTexture, SceneColorTexture);
+	}
 	else
 	{
-		UE_LOG(LogNPRTools, Error, TEXT("Invalid composition mode! Composition mode = %d"), static_cast<uint32>(Parameters->CompositionMode));
+		UE_LOG(LogNPRTools, Error, TEXT("Parameter configuration error: Invalid composition mode!"));
 	}
  }

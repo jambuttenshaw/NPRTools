@@ -87,7 +87,8 @@ FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const 
 		TempProxy->KuwaharaZeroCrossing = ParamsAsset->KuwaharaZeroCrossing;
 		TempProxy->KuwaharaZeta = ParamsAsset->KuwaharaZeta;
 
-		TempProxy->CompositionMode = ParamsAsset->CompositionMode;
+		TempProxy->bCompositeColor = ParamsAsset->bCompositeColor;
+		TempProxy->bCompositeEdges = ParamsAsset->bCompositeEdges;
 	}
 
 	return TempProxy;

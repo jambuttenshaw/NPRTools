@@ -5,34 +5,6 @@
 #include "NPRToolsParameters.generated.h"
 
 
-/* Some workable defaults:
-	SigmaD1 = 3.0f;
-	SigmaR1 = 0.425f;
-	SigmaD2 = 0.34f;
-	SigmaR2 = 3.3f;
-
-	SigmaE = 1.0f;
-	K = 1.6f;
-	Tau = 20.0f;
-
-	SigmaM = 3.0f;
-
-	Epsilon = 0.1f;
-	PhiEdge = 3.4f;
-
-	NumBins = 16;
-	PhiColor = 3.4f;
-	 */
-
-
-UENUM(BlueprintType)
-enum class ENPRToolsCompositionMode : uint8
-{
-	ColourOnly = 0,
-	EdgesOnly = 1,
-	ColourAndEdges = 2
-};
-
 UENUM(BlueprintType)
 enum class ENPRToolsDifferenceOfGaussiansThresholdingMethod: uint8
 {
@@ -126,7 +98,10 @@ public:
 
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
-	ENPRToolsCompositionMode CompositionMode;
+	bool bCompositeColor;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
+	bool bCompositeEdges;
 };
 
 
@@ -170,7 +145,8 @@ struct FNPRToolsParametersProxy
 	float KuwaharaZeta;
 
 	// Composition parameters
-	ENPRToolsCompositionMode CompositionMode;
+	bool bCompositeColor;
+	bool bCompositeEdges;
 };
 
 
