@@ -42,6 +42,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
 	float GradientSigmaR;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Tangents")
+	bool bSmoothTangents;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Tangents", meta = (ClampMin = "0.0", ClampMax = "0.99"))
+	float SmoothingAmount;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Difference of Gaussians")
 	float SigmaE;
@@ -117,6 +121,10 @@ struct FNPRToolsParametersProxy
 	float SigmaR1;
 	float SigmaD2;
 	float SigmaR2;
+
+	// Tangent parameters
+	bool bSmoothTangents;
+	float SmoothingAmount;
 
 	// Difference of Gaussian parameters
 	float SigmaE;

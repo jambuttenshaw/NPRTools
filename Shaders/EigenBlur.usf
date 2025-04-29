@@ -1,10 +1,17 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/ScreenPass.ush"
 
+#ifndef SMOOTH_TANGENTS
+#define SMOOTH_TANGENTS true
+#endif
+
 
 SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 
 Texture2D<float4> InTexture;
+
+float SmoothingAmount;
+Texture2D<float4> InPrevTangentFlowMap;
 
 
 float4 BlurEigenVerticalPS(
@@ -83,6 +90,13 @@ float4 BlurEigenHorizontalPS(
        // aniso = lambda1 - lambda2 / lam12; gives shader toy results
 	}
 
-	return float4(eigFlow2.xy, aniso, phi); //instead of phi  will use a buffer output later
+	float4 tfm = float4(eigFlow2.xy, aniso, phi);
+
+#if SMOOTH_TANGENTS
+	float4 prevTfm = InPrevTangentFlowMap.Sample(sampler0, InUV);
+	tfm = lerp(tfm, prevTfm, saturate(SmoothingAmount));
+#endif
+
+	return tfm; //instead of phi  will use a buffer output later
 }
 

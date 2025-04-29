@@ -14,6 +14,9 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	GradientSigmaD = 0.34f;
 	GradientSigmaR = 3.3f;
 
+	bSmoothTangents = true;
+	SmoothingAmount = 0.9f;
+
 	SigmaE = 1.0f;
 	K = 1.6f;
 	Tau = 20.0f;

@@ -77,12 +77,18 @@ public:
 	DECLARE_GLOBAL_SHADER(FBlurEigenHorizontalPassPS);
 	SHADER_USE_PARAMETER_STRUCT(FBlurEigenHorizontalPassPS, FGlobalShader);
 
+	class FSmoothTangents : SHADER_PERMUTATION_BOOL("SMOOTH_TANGENTS");
+	using FPermutationDomain = TShaderPermutationDomain<FSmoothTangents>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InTexture)
+
+		SHADER_PARAMETER(float, SmoothingAmount)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InPrevTangentFlowMap)
 
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -303,6 +309,14 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	Inputs.Validate();
 	FRDGTextureRef SceneColorTexture = (*Inputs.SceneTextures)->SceneColorTexture;
 
+	bool bSmoothTangents = Parameters->bSmoothTangents && SmoothedTangentFlowMap.IsValid();
+
+	FRDGTextureRef PrevTangentFlowMapTexture;
+	if (bSmoothTangents)
+	{
+		PrevTangentFlowMapTexture = GraphBuilder.RegisterExternalTexture(SmoothedTangentFlowMap);
+	}
+
 	// Create a texture to hold the output of our Sobel filter
 	// It should be the same format etc as the scene colour texture
 	FRDGTextureDesc TextureDesc = SceneColorTexture->Desc;
@@ -371,13 +385,21 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 			}
 		);
 
+		FBlurEigenHorizontalPassPS::FPermutationDomain Permutation;
+		Permutation.Set<FBlurEigenHorizontalPassPS::FSmoothTangents>(bSmoothTangents);
 		AddPass.operator()<FBlurEigenHorizontalPassPS>(
 			RDG_EVENT_NAME("EigenBlur(Horizontal)"),
 			TangentFlowMapTexture,
 			[&](auto PassParameters)
 			{
+				if (bSmoothTangents)
+				{
+					PassParameters->SmoothingAmount = Parameters->SmoothingAmount;
+					PassParameters->InPrevTangentFlowMap = GraphBuilder.CreateSRV(PrevTangentFlowMapTexture);
+				}
 				PassParameters->InTexture = GraphBuilder.CreateSRV(TempPingTexture);
-			}
+			},
+			Permutation
 		);
 	}
 
@@ -537,4 +559,7 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	{
 		UE_LOG(LogNPRTools, Error, TEXT("Parameter configuration error: Invalid composition mode!"));
 	}
+
+	// Save tangent flow map for next frame for temporal smoothing
+	GraphBuilder.QueueTextureExtraction(TangentFlowMapTexture, &SmoothedTangentFlowMap);
  }

@@ -65,6 +65,9 @@ FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const 
 		TempProxy->SigmaD2 = ParamsAsset->GradientSigmaD;
 		TempProxy->SigmaR2 = ParamsAsset->GradientSigmaR;
 
+		TempProxy->bSmoothTangents = ParamsAsset->bSmoothTangents;
+		TempProxy->SmoothingAmount = ParamsAsset->SmoothingAmount;
+
 		TempProxy->SigmaE = ParamsAsset->SigmaE;
 		TempProxy->K = ParamsAsset->K;
 		TempProxy->Tau = ParamsAsset->Tau;

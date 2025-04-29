@@ -26,4 +26,6 @@ public:
 
 private:
 	UNPRToolsWorldSubsystem* WorldSubsystem;
+
+	TRefCountPtr<IPooledRenderTarget> SmoothedTangentFlowMap;
 };
