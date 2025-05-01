@@ -26,8 +26,4 @@ public:
 
 private:
 	UNPRToolsWorldSubsystem* WorldSubsystem;
-
-	// History data for temporal smoothing
-	// TODO: History is not polymorphic - could allocate on stack?
-	TUniquePtr<struct FNPRToolsHistory> History;
 };

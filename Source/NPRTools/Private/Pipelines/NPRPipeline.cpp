@@ -16,11 +16,18 @@ static TAutoConsoleVariable<bool> CVarNPRToolsEnable(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<bool> CVarNPRToolsEnableForSceneCaptures(
+	TEXT("npr.EnableForSceneCaptures"),
+	false,
+	TEXT("Enables NPR pipeline for scene capture components (this has found to be unstable) (Default = false)"),
+	ECVF_RenderThreadSafe
+);
+
+
 DECLARE_GPU_STAT_NAMED(NPRToolsStat, TEXT("NPRTools"));
 
 namespace NPRTools
 {
-	// These are all functions for access on RENDER THREAD
 	bool IsEnabled()
 	{
 		check(IsInGameThread());
@@ -31,10 +38,21 @@ namespace NPRTools
 		check(IsInRenderingThread());
 		return CVarNPRToolsEnable.GetValueOnRenderThread();
 	}
+
+	bool IsEnabledForSceneCaptures()
+	{
+		check(IsInGameThread());
+		return CVarNPRToolsEnableForSceneCaptures.GetValueOnGameThread();
+	}
+	bool IsEnabledForSceneCaptures_RenderThread()
+	{
+		check(IsInRenderingThread());
+		return CVarNPRToolsEnableForSceneCaptures.GetValueOnRenderThread();
+	}
 }
 
 
-void NPRTools::ExecuteNPRPipeline(
+bool NPRTools::ExecuteNPRPipeline(
 	FRDGBuilder& GraphBuilder,
 	const FNPRToolsParametersProxy& NPRParameters,
 	FRDGTextureRef InColorTexture,
@@ -46,16 +64,17 @@ void NPRTools::ExecuteNPRPipeline(
 	check(InColorTexture && OutColorTexture);
 	
 	if (!NPRParameters.bEnable)
-		return;
+		return false;
 
 	if (!(NPRParameters.bCompositeColor || NPRParameters.bCompositeEdges))
-		return;
+		return false;
 
 	RDG_EVENT_SCOPE_STAT(GraphBuilder, NPRToolsStat, "NPRTools");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NPRToolsStat);
 	SCOPED_NAMED_EVENT(NPRTools, FColor::Purple);
 
-	bool bSmoothTangents = NPRParameters.bSmoothTangents && History->IsValid();
+	bool bHistoryExists = History && History->IsValid();
+	bool bSmoothTangents = NPRParameters.bSmoothTangents && bHistoryExists;
 
 	FRDGTextureRef PrevTangentFlowMapTexture;
 	if (bSmoothTangents)
@@ -74,6 +93,11 @@ void NPRTools::ExecuteNPRPipeline(
 	FRDGTextureRef ColorChangeTexture    = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.ColorChange"));
 	FRDGTextureRef TempPingTexture		 = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TempPing"));
 	FRDGTextureRef TempPongTexture		 = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TempPong"));
+
+	AddClearRenderTargetPass(GraphBuilder, TangentFlowMapTexture);
+	AddClearRenderTargetPass(GraphBuilder, ColorChangeTexture);
+	AddClearRenderTargetPass(GraphBuilder, TempPingTexture);
+	AddClearRenderTargetPass(GraphBuilder, TempPongTexture);
 
 	// We want to perform our postprocessing to the entire viewport
 	FScreenPassTextureViewport ViewPort(TextureDesc.Extent);
@@ -303,5 +327,10 @@ void NPRTools::ExecuteNPRPipeline(
 	}
 
 	// Save tangent flow map for next frame for temporal smoothing
-	GraphBuilder.QueueTextureExtraction(TangentFlowMapTexture, &History->PreviousTangentFlowMapTexture);
+	if (bHistoryExists)
+	{
+		GraphBuilder.QueueTextureExtraction(TangentFlowMapTexture, &History->PreviousTangentFlowMapTexture);
+	}
+
+	return true;
 }

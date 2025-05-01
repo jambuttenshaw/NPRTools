@@ -1,13 +1,8 @@
 #include "NPRToolsViewExtension.h"
 
-#include "NPRTools.h"
 #include "NPRToolsWorldSubsystem.h"
-#include "NPRToolsParametersProxy.h"
 #include "NPRToolsHistory.h"
 #include "Pipelines/NPRPipeline.h"
-
-#include "ShaderParameterStruct.h"
-#include "ScreenPass.h"
 
 #include "PostProcess/PostProcessInputs.h"
 #include "RenderTargetPool.h"
@@ -19,7 +14,6 @@ FNPRToolsViewExtension::FNPRToolsViewExtension(const FAutoRegister& AutoRegister
 	: FSceneViewExtensionBase(AutoRegister)
 	, WorldSubsystem(InWorldSubsystem)
 {
-	History = MakeUnique<FNPRToolsHistory>();
 }
 
 void FNPRToolsViewExtension::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
@@ -39,6 +33,9 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	const FSceneView& View, 
 	const FPostProcessingInputs& Inputs)
 {
+	if (View.bIsSceneCapture && !NPRTools::IsEnabledForSceneCaptures_RenderThread())
+		return;
+
 	if (!IsValid(WorldSubsystem) || !WorldSubsystem->ParametersProxy.IsValid())
 		return;
 	FNPRToolsParametersProxy* Parameters = WorldSubsystem->ParametersProxy.Get();
@@ -46,16 +43,25 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	// Get the scene colour texture from the post process inputs
 	Inputs.Validate();
 	FRDGTextureRef SceneColorTexture = (*Inputs.SceneTextures)->SceneColorTexture;
-	FRDGTextureRef OutTexture = GraphBuilder.CreateTexture(SceneColorTexture->Desc, TEXT("NPRTools.Result"));
 
-	NPRTools::ExecuteNPRPipeline(
+	FRDGTextureDesc TextureDesc = SceneColorTexture->Desc;
+	TextureDesc.ClearValue = FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f));
+	TextureDesc.Format = PF_FloatRGBA;
+
+	FRDGTextureRef OutTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.Result"));
+	AddClearRenderTargetPass(GraphBuilder, OutTexture);
+
+	bool bSuccess = NPRTools::ExecuteNPRPipeline(
 		GraphBuilder,
 		*Parameters,
 		SceneColorTexture,
 		OutTexture,
-		History.Get()
+		nullptr
 	);
 
-	// Copy output back to scene color for remainder of scene rendering
-	AddCopyTexturePass(GraphBuilder, OutTexture, SceneColorTexture);
+	if (bSuccess)
+	{
+		// Copy output back to scene color for remainder of scene rendering
+		AddCopyTexturePass(GraphBuilder, OutTexture, SceneColorTexture);
+	}
  }
