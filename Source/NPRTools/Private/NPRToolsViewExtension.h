@@ -27,5 +27,7 @@ public:
 private:
 	UNPRToolsWorldSubsystem* WorldSubsystem;
 
-	TRefCountPtr<IPooledRenderTarget> SmoothedTangentFlowMap;
+	// History data for temporal smoothing
+	// TODO: History is not polymorphic - could allocate on stack?
+	TUniquePtr<struct FNPRToolsHistory> History;
 };
