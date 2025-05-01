@@ -6,6 +6,7 @@ SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 
 Texture2D<float4> SceneColorTexture;
 
+SamplerState sampler0;
 
 float4 ConvertYCbCrPS(
 	float2 InUV : TEXCOORD0
@@ -20,7 +21,7 @@ float4 ConvertYCbCrPS(
 	const float3 Cblue = float3(-0.168736, -0.331264, 0.5);
 	const float3 Cred = float3(0.5, -0.418688, -0.081312);
 
-	float3 SceneColor = SceneColorTexture.Sample(View.SharedPointClampedSampler, InUV).xyz;
+	float3 SceneColor = SceneColorTexture.Sample(sampler0, InUV).xyz;
 
 	float yprime = dot(SceneColor, lum);
 	float Cb = dot(SceneColor, Cblue) + 0.5; //Cb [-.5, 0.5] so need to add 0.5

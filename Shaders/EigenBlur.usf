@@ -13,14 +13,13 @@ Texture2D<float4> InTexture;
 float SmoothingAmount;
 Texture2D<float4> InPrevTangentFlowMap;
 
+SamplerState sampler0;
 
 float4 BlurEigenVerticalPS(
 	float2 InUV : TEXCOORD0,
 	float4 SvPosition : SV_Position
 ) : SV_Target0
 {
-	const SamplerState sampler0 = View.SharedPointClampedSampler;
-
 	const float rcpH = ViewPort_ExtentInverse.y;
 	const float oneOver256 = 1.0 / 256.0;
 	float3 u = float3(
@@ -44,8 +43,6 @@ float4 BlurEigenHorizontalPS(
 	float4 SvPosition : SV_Position
 ) : SV_Target0
 {
-	const SamplerState sampler0 = View.SharedPointClampedSampler;
-
 	const float rcpW = ViewPort_ExtentInverse.x;
 	const float oneOver256 = 1.0 / 256.0;
 	float3 u = float3(

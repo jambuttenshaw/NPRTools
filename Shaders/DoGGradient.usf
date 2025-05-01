@@ -12,13 +12,12 @@ float Tau;
 Texture2D<float4> InBilateralTexture; // Output of bilateral pass
 Texture2D<float4> InTangentFlowMapTexture;
 
+SamplerState sampler0;
 
 float4 DoGGradientPS(
 	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
-	const SamplerState sampler0 = View.SharedPointClampedSampler;
-
 	float sigmaE2 = 2 * SigmaE * SigmaE;
 	float sigmaPrime2 = 2 * SigmaP * SigmaP;
 	float2 tangent = InTangentFlowMapTexture.Sample(sampler0, InUV).xy;

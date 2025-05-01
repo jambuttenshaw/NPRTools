@@ -9,12 +9,13 @@ float Phi;
 
 Texture2D<float4> InBilateralTexture;
 
+SamplerState sampler0;
 
 float4 QuantizePS(
 	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
-	float3 ColorYCC = InBilateralTexture.Sample(View.SharedPointClampedSampler, InUV).rgb;
+	float3 ColorYCC = InBilateralTexture.Sample(sampler0, InUV).rgb;
 
     //shader x + real-time video abstractions
     //can also trial w/float3 over float with cbcr included in the bins

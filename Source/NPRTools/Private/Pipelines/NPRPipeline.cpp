@@ -36,7 +36,6 @@ namespace NPRTools
 
 void NPRTools::ExecuteNPRPipeline(
 	FRDGBuilder& GraphBuilder,
-	const FSceneView& View,
 	const FNPRToolsParametersProxy& NPRParameters,
 	FRDGTextureRef InOutColorTexture,
 	FNPRToolsHistory* History
@@ -77,6 +76,7 @@ void NPRTools::ExecuteNPRPipeline(
 
 	// We want to perform our postprocessing to the entire viewport
 	FScreenPassTextureViewport ViewPort(TextureDesc.Extent);
+	FScreenPassViewInfo ViewInfo(GMaxRHIFeatureLevel);
 
 	// Helper function to dispatch pass to avoid boilerplate
 	auto AddPass = [&]<typename Shader, typename SetPassParametersLambdaType>(
@@ -86,19 +86,19 @@ void NPRTools::ExecuteNPRPipeline(
 		typename Shader::FPermutationDomain Permutation = TShaderPermutationDomain())
 	{
 		typename Shader::FParameters* PassParameters = GraphBuilder.AllocParameters<typename Shader::FParameters>();
-		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->ViewPort = GetScreenPassTextureViewportParameters(ViewPort);
+		PassParameters->sampler0 = TStaticSamplerState<>::GetRHI(); // Point clamped sampler
 
 		SetPassParametersLambda(PassParameters);
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(RenderTarget, ERenderTargetLoadAction::ENoAction);
 
-		const FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(View.GetFeatureLevel());
+		const FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 		TShaderMapRef<Shader> PixelShader(ShaderMap, Permutation);
 
 		AddDrawScreenPass(
 			GraphBuilder,
 			std::move(PassName),
-			View,
+			ViewInfo,
 			ViewPort,
 			ViewPort,
 			PixelShader,

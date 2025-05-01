@@ -16,6 +16,7 @@ float Phi;
 Texture2D<float4> InDoGGradientTexture; // Output of DoG gradient pass
 Texture2D<float4> InTangentFlowMapTexture;
 
+SamplerState sampler0;
 
 struct LineIntegralConv
 {
@@ -27,7 +28,7 @@ struct LineIntegralConv
 
 void TakeStep(inout LineIntegralConv lic)
 {
-	float2 tan = InTangentFlowMapTexture.Sample(View.SharedPointClampedSampler, lic.uv).xy; //get the tangent from the map
+	float2 tan = InTangentFlowMapTexture.Sample(sampler0, lic.uv).xy; //get the tangent from the map
 	float signT = 1;
 	if (dot(tan, lic.prevTan) < 0)
 	{
@@ -50,8 +51,6 @@ float4 DoGFlowPS(
 	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
-	const SamplerState sampler0 = View.SharedPointClampedSampler;
-
 	float sigmaM2 = 2 * SigmaM * SigmaM;
 
 	float sum = InDoGGradientTexture.Sample(sampler0, InUV).x; // only care about luminence channel

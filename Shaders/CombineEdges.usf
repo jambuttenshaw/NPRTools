@@ -7,14 +7,15 @@ SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 Texture2D<float4> InColorTexture; // In RGB
 Texture2D<float4> InEdgesTexture;
 
+SamplerState sampler0;
 
 float4 CombineEdgesPS(
 	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
-	float3 ColorRGB = InColorTexture.Sample(View.SharedPointClampedSampler, InUV).rgb;
+	float3 ColorRGB = InColorTexture.Sample(sampler0, InUV).rgb;
 
-	float EdgesVal = InEdgesTexture.Sample(View.SharedPointClampedSampler, InUV).r;
+	float EdgesVal = InEdgesTexture.Sample(sampler0, InUV).r;
 
 	return float4((ColorRGB * EdgesVal), 1.0f);
 }

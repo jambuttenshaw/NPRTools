@@ -49,7 +49,6 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 
 	NPRTools::ExecuteNPRPipeline(
 		GraphBuilder,
-		View,
 		*Parameters,
 		SceneColorTexture,
 		History.Get()

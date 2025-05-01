@@ -6,6 +6,7 @@ SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 
 Texture2D<float4> SceneColorTexture;
 
+SamplerState sampler0;
 
 float4 SobelPS(
 	float2 InUV : TEXCOORD0
@@ -13,8 +14,6 @@ float4 SobelPS(
 {
 	const float rcpW = ViewPort_ExtentInverse.x;
 	const float rcpH = ViewPort_ExtentInverse.y;
-
-	const SamplerState sampler0 = View.SharedPointClampedSampler;
 
 	float4 u = float4(-1.0 * SceneColorTexture.Sample(sampler0, InUV + float2(-rcpW, -rcpH)) +
                       -2.0 * SceneColorTexture.Sample(sampler0, InUV + float2(-rcpW, 0.0)) +

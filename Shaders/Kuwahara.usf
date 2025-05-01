@@ -25,6 +25,7 @@ float Zeta = 0.1;
 Texture2D<float4> SceneColorTexture;
 Texture2D<float4> TangentFlowMapTexture;
 
+SamplerState sampler0;
 
 // Anisotropic Kuwahara
 float4 KuwaharaPS(
@@ -34,9 +35,7 @@ float4 KuwaharaPS(
 	// Controls kernel segments
 	const int _N = 8;
 
-	const SamplerState sampler0 = View.SharedPointClampedSampler;
-
-	const float4 tfm = TangentFlowMapTexture.Sample(View.SharedPointClampedSampler, InUV);
+	const float4 tfm = TangentFlowMapTexture.Sample(sampler0, InUV);
 	const float A = tfm.z;
 	const float phi = tfm.w;
 

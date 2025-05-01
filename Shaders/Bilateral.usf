@@ -10,13 +10,12 @@ float SigmaR;
 Texture2D<float4> InSceneColorYCCTexture;
 Texture2D<float4> InTangentFlowMapTexture;
 
+SamplerState sampler0;
 
 float4 BilateralPS(
 	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
-	const SamplerState sampler0 = View.SharedPointClampedSampler;
-
 	float SigmaD2 = 2.0f * SigmaD * SigmaD;
 	float SigmaR2 = 2.0f * SigmaR * SigmaR;
 
