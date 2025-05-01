@@ -46,11 +46,16 @@ void FNPRToolsViewExtension::PrePostProcessPass_RenderThread(
 	// Get the scene colour texture from the post process inputs
 	Inputs.Validate();
 	FRDGTextureRef SceneColorTexture = (*Inputs.SceneTextures)->SceneColorTexture;
+	FRDGTextureRef OutTexture = GraphBuilder.CreateTexture(SceneColorTexture->Desc, TEXT("NPRTools.Result"));
 
 	NPRTools::ExecuteNPRPipeline(
 		GraphBuilder,
 		*Parameters,
 		SceneColorTexture,
+		OutTexture,
 		History.Get()
 	);
+
+	// Copy output back to scene color for remainder of scene rendering
+	AddCopyTexturePass(GraphBuilder, OutTexture, SceneColorTexture);
  }

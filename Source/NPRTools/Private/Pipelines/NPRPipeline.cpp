@@ -37,12 +37,13 @@ namespace NPRTools
 void NPRTools::ExecuteNPRPipeline(
 	FRDGBuilder& GraphBuilder,
 	const FNPRToolsParametersProxy& NPRParameters,
-	FRDGTextureRef InOutColorTexture,
+	FRDGTextureRef InColorTexture,
+	FRDGTextureRef OutColorTexture, 
 	FNPRToolsHistory* History
 	)
 {
 	check(IsInRenderingThread());
-	check(InOutColorTexture);
+	check(InColorTexture && OutColorTexture);
 	
 	if (!NPRParameters.bEnable)
 		return;
@@ -64,7 +65,7 @@ void NPRTools::ExecuteNPRPipeline(
 
 	// Create a texture to hold the output of our Sobel filter
 	// It should be the same format etc as the scene colour texture
-	FRDGTextureDesc TextureDesc = InOutColorTexture->Desc;
+	FRDGTextureDesc TextureDesc = InColorTexture->Desc;
 	TextureDesc.ClearValue = FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f));
 	// TODO: All textures may not need to have 4 channels
 	TextureDesc.Format = PF_FloatRGBA;
@@ -113,7 +114,7 @@ void NPRTools::ExecuteNPRPipeline(
 			TangentFlowMapTexture,
 			[&](auto PassParameters)
 			{
-				PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InOutColorTexture);
+				PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InColorTexture);
 			}
 		);
 
@@ -149,7 +150,7 @@ void NPRTools::ExecuteNPRPipeline(
 		TempPongTexture,
 		[&](auto PassParameters)
 		{
-			PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InOutColorTexture);
+			PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InColorTexture);
 		}
 	);
 
@@ -248,7 +249,7 @@ void NPRTools::ExecuteNPRPipeline(
 					PassParameters->ZeroCrossing = NPRParameters.KuwaharaZeroCrossing;
 					PassParameters->Zeta = NPRParameters.KuwaharaZeta;
 
-					PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InOutColorTexture);
+					PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InColorTexture);
 					PassParameters->TangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
 				}
 			);
@@ -272,7 +273,7 @@ void NPRTools::ExecuteNPRPipeline(
 	else
 	{
 		// Copy scene colour texture as that has not been converted to YCC
-		AddCopyTexturePass(GraphBuilder, InOutColorTexture, TempPingTexture);
+		AddCopyTexturePass(GraphBuilder, InColorTexture, TempPingTexture);
 	}
 
 	if (NPRParameters.bCompositeColor && NPRParameters.bCompositeEdges)
@@ -280,7 +281,7 @@ void NPRTools::ExecuteNPRPipeline(
 		// Combine edges and quantized color
 		AddPass.operator()<FCombineEdgesPassPS>(
 			RDG_EVENT_NAME("CombineEdges"),
-			InOutColorTexture,
+			OutColorTexture,
 			[&](auto PassParameters)
 			{
 				PassParameters->InColorTexture = GraphBuilder.CreateSRV(TempPingTexture);
@@ -290,11 +291,11 @@ void NPRTools::ExecuteNPRPipeline(
 	}
 	else if (NPRParameters.bCompositeColor)
 	{
-		AddCopyTexturePass(GraphBuilder, TempPingTexture, InOutColorTexture);
+		AddCopyTexturePass(GraphBuilder, TempPingTexture, OutColorTexture);
 	}
 	else if (NPRParameters.bCompositeEdges)
 	{
-		AddCopyTexturePass(GraphBuilder, TempPongTexture, InOutColorTexture);
+		AddCopyTexturePass(GraphBuilder, TempPongTexture, OutColorTexture);
 	}
 	else
 	{
