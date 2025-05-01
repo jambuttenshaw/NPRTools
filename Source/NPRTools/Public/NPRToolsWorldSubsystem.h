@@ -2,10 +2,11 @@
 
 
 #include "NPRToolsParameters.h"
-
 #include "Subsystems/WorldSubsystem.h"
 
 #include "NPRToolsWorldSubsystem.generated.h"
+
+using FNPRToolsParametersProxyPtr = TSharedPtr<struct FNPRToolsParametersProxy, ESPMode::ThreadSafe>;
 
 
 UCLASS()
@@ -21,10 +22,6 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void OverrideNPRParametersAsset(UNPRToolsParametersDataAsset* ParamsAsset);
-
-private:
-	// Create a new proxy from the current parameters to be copied into the render thread state
-	FNPRToolsParametersProxyPtr CreateProxyFromAsset(const UNPRToolsParametersDataAsset* ParamsAsset) const;
 
 private:
 	TSharedPtr<class FNPRToolsViewExtension, ESPMode::ThreadSafe> ViewExtension;

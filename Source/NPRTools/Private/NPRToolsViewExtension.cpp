@@ -2,6 +2,7 @@
 
 #include "NPRTools.h"
 #include "NPRToolsWorldSubsystem.h"
+#include "NPRToolsParametersProxy.h"
 
 #include "ShaderParameterStruct.h"
 #include "ScreenPass.h"

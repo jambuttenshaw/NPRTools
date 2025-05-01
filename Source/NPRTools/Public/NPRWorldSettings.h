@@ -3,12 +3,29 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/Interface.h"
 #include "GameFramework/WorldSettings.h"
 
 #include "NPRToolsParameters.h"
-#include "NPRWorldSettingsInterface.h"
 
 #include "NPRWorldSettings.generated.h"
+
+
+UINTERFACE()
+class UNPRWorldSettingsInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class INPRWorldSettingsInterface
+{
+	GENERATED_BODY()
+
+public:
+	virtual const UNPRToolsParametersDataAsset* GetNPRToolsParameters() const { return nullptr; }
+
+};
+
 
 /**
  * 

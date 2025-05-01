@@ -4,53 +4,11 @@
 #include "NPRToolsViewExtension.h"
 #include "NPRWorldSettings.h"
 
-
-void UNPRToolsWorldSubsystem::Initialize(FSubsystemCollectionBase& Collection)
-{
-	// View extension lifetime is equal to the UWorld lifetime
-	ViewExtension = FSceneViewExtensions::NewExtension<FNPRToolsViewExtension>(this);
-}
-
-void UNPRToolsWorldSubsystem::Deinitialize()
-{
-	ViewExtension->Invalidate();
-}
+#include "NPRToolsParametersProxy.h"
 
 
-void UNPRToolsWorldSubsystem::TransferState()
-{
-	// Get params asset from world settings
-	const UNPRToolsParametersDataAsset* ParamsAsset = nullptr;
-
-	if (ParamsAssetOverride)
-	{
-		ParamsAsset = ParamsAssetOverride;
-	}
-	else if (AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings())
-	{
-		if (INPRWorldSettingsInterface* NPRSettingsInterface = Cast<INPRWorldSettingsInterface>(WorldSettings))
-		{
-			ParamsAsset = NPRSettingsInterface->GetNPRToolsParameters();
-		}
-	}
-
-	TSharedPtr<FNPRToolsParametersProxy> Proxy = CreateProxyFromAsset(ParamsAsset);
-
-	ENQUEUE_RENDER_COMMAND(CopyNPRToolsParametersProxies)(
-		[this, TempProxy = MoveTemp(Proxy)]
-		(FRHICommandListImmediate& RHICmdList)
-	{
-		ParametersProxy = TempProxy;
-	});
-}
-
-void UNPRToolsWorldSubsystem::OverrideNPRParametersAsset(UNPRToolsParametersDataAsset* ParamsAsset)
-{
-	ParamsAssetOverride = ParamsAsset;
-}
-
-
-FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const UNPRToolsParametersDataAsset* ParamsAsset) const
+// Create a new proxy from the current parameters to be copied into the render thread state
+static FNPRToolsParametersProxyPtr CreateProxyFromAsset(const UNPRToolsParametersDataAsset* ParamsAsset)
 {
 	FNPRToolsParametersProxyPtr TempProxy;
 	if (ParamsAsset)
@@ -95,4 +53,49 @@ FNPRToolsParametersProxyPtr UNPRToolsWorldSubsystem::CreateProxyFromAsset(const 
 	}
 
 	return TempProxy;
+}
+
+
+void UNPRToolsWorldSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	// View extension lifetime is equal to the UWorld lifetime
+	ViewExtension = FSceneViewExtensions::NewExtension<FNPRToolsViewExtension>(this);
+}
+
+void UNPRToolsWorldSubsystem::Deinitialize()
+{
+	ViewExtension->Invalidate();
+}
+
+
+void UNPRToolsWorldSubsystem::TransferState()
+{
+	// Get params asset from world settings
+	const UNPRToolsParametersDataAsset* ParamsAsset = nullptr;
+
+	if (ParamsAssetOverride)
+	{
+		ParamsAsset = ParamsAssetOverride;
+	}
+	else if (AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings())
+	{
+		if (INPRWorldSettingsInterface* NPRSettingsInterface = Cast<INPRWorldSettingsInterface>(WorldSettings))
+		{
+			ParamsAsset = NPRSettingsInterface->GetNPRToolsParameters();
+		}
+	}
+
+	TSharedPtr<FNPRToolsParametersProxy> Proxy = CreateProxyFromAsset(ParamsAsset);
+
+	ENQUEUE_RENDER_COMMAND(CopyNPRToolsParametersProxies)(
+		[this, TempProxy = MoveTemp(Proxy)]
+		(FRHICommandListImmediate& RHICmdList)
+	{
+		ParametersProxy = TempProxy;
+	});
+}
+
+void UNPRToolsWorldSubsystem::OverrideNPRParametersAsset(UNPRToolsParametersDataAsset* ParamsAsset)
+{
+	ParamsAssetOverride = ParamsAsset;
 }
