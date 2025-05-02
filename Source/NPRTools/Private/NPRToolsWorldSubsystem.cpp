@@ -7,55 +7,6 @@
 #include "NPRToolsParametersProxy.h"
 
 
-// Create a new proxy from the current parameters to be copied into the render thread state
-static FNPRToolsParametersProxyPtr CreateProxyFromAsset(const UNPRToolsParametersDataAsset* ParamsAsset)
-{
-	FNPRToolsParametersProxyPtr TempProxy;
-	if (ParamsAsset)
-	{
-		TempProxy = MakeShared<FNPRToolsParametersProxy>();
-
-		TempProxy->bEnable = ParamsAsset->bEnable;
-
-		TempProxy->NumBilateralFilterPasses = ParamsAsset->NumBilateralFilterPasses;
-		TempProxy->SigmaD1 = ParamsAsset->TangentSigmaD;
-		TempProxy->SigmaR1 = ParamsAsset->TangentSigmaR;
-		TempProxy->SigmaD2 = ParamsAsset->GradientSigmaD;
-		TempProxy->SigmaR2 = ParamsAsset->GradientSigmaR;
-
-		TempProxy->bSmoothTangents = ParamsAsset->bSmoothTangents;
-		TempProxy->SmoothingAmount = ParamsAsset->SmoothingAmount;
-
-		TempProxy->SigmaE = ParamsAsset->SigmaE;
-		TempProxy->K = ParamsAsset->K;
-		TempProxy->Tau = ParamsAsset->Tau;
-
-		TempProxy->SigmaM = ParamsAsset->SigmaM;
-
-		TempProxy->ThresholdingMethod = ParamsAsset->ThresholdingMethod;
-		TempProxy->Epsilon = ParamsAsset->Epsilon;
-		TempProxy->PhiEdge = ParamsAsset->PhiEdge;
-
-		TempProxy->bEnableQuantization = ParamsAsset->bEnableQuantization;
-		TempProxy->NumBins = ParamsAsset->NumBins;
-		TempProxy->PhiColor = ParamsAsset->PhiColor;
-
-		TempProxy->bUseKuwahara = ParamsAsset->bUseKuwahara;
-		TempProxy->KuwaharaKernelSize = ParamsAsset->KuwaharaKernelSize;
-		TempProxy->KuwaharaHardness = ParamsAsset->KuwaharaHardness;
-		TempProxy->KuwaharaSharpness = ParamsAsset->KuwaharaSharpness;
-		TempProxy->KuwaharaAlpha = ParamsAsset->KuwaharaAlpha;
-		TempProxy->KuwaharaZeroCrossing = ParamsAsset->KuwaharaZeroCrossing;
-		TempProxy->KuwaharaZeta = ParamsAsset->KuwaharaZeta;
-
-		TempProxy->bCompositeColor = ParamsAsset->bCompositeColor;
-		TempProxy->bCompositeEdges = ParamsAsset->bCompositeEdges;
-	}
-
-	return TempProxy;
-}
-
-
 void UNPRToolsWorldSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	// View extension lifetime is equal to the UWorld lifetime
@@ -85,11 +36,11 @@ void UNPRToolsWorldSubsystem::TransferState()
 		}
 	}
 
-	TSharedPtr<FNPRToolsParametersProxy> Proxy = CreateProxyFromAsset(ParamsAsset);
+	FNPRToolsParametersProxyPtr Proxy = MakeShared<FNPRToolsParametersProxy>(ParamsAsset);
 
 	ENQUEUE_RENDER_COMMAND(CopyNPRToolsParametersProxies)(
 		[this, TempProxy = MoveTemp(Proxy)]
-		(FRHICommandListImmediate& RHICmdList)
+		(FRHICommandListImmediate&)
 	{
 		ParametersProxy = TempProxy;
 	});

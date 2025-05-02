@@ -49,4 +49,6 @@ struct FNPRToolsParametersProxy
 	// Composition parameters
 	bool bCompositeColor;
 	bool bCompositeEdges;
+
+	explicit FNPRToolsParametersProxy(const UNPRToolsParametersDataAsset* ParamsAsset);
 };

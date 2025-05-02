@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NPRToolsParameters.h"
 
 #include "CompositingElements/CompositingElementPasses.h"
 #include "NPRCompositingElementTransforms.generated.h"
@@ -12,8 +13,20 @@ class NPRTOOLS_API UCompositingNPRPass : public UCompositingElementTransform
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
+	float RenderScale = 1.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
+	UNPRToolsParametersDataAsset* NPRParameters;
 
 public:
 	virtual UTexture* ApplyTransform_Implementation(UTexture* Input, UComposurePostProcessingPassProxy* PostProcessProxy, ACameraActor* TargetCamera) override;
+
+private:
+
+	void ApplyTransform_RenderThread(FRHICommandListImmediate& RHICmdList, FTextureResource* InputResource, FTextureResource* RenderTargetResource) const;
+
+private:
+	TSharedPtr<struct FNPRToolsParametersProxy, ESPMode::ThreadSafe> ParametersProxy;
 
 };
