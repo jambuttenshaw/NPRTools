@@ -20,3 +20,7 @@ IMPLEMENT_GLOBAL_SHADER(FQuantizePassPS, "/NPRTools/Quantize.usf", "QuantizePS",
 IMPLEMENT_GLOBAL_SHADER(FKuwaharaPassPS, "/NPRTools/Kuwahara.usf", "KuwaharaPS", SF_Pixel);
 
 IMPLEMENT_GLOBAL_SHADER(FCombineEdgesPassPS, "/NPRTools/CombineEdges.usf", "CombineEdgesPS", SF_Pixel);
+
+IMPLEMENT_GLOBAL_SHADER(FOilPaintStrokesPS, "/NPRTools/OilPaint.usf", "OilPaintStrokesPS", SF_Pixel);
+
+IMPLEMENT_GLOBAL_SHADER(FOilPaintReliefLightingPS, "/NPRTools/OilPaint.usf", "OilPaintReliefLightingPS", SF_Pixel);
