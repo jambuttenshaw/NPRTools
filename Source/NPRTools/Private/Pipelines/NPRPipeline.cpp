@@ -52,6 +52,316 @@ namespace NPRTools
 }
 
 
+template <typename Shader>
+void AddNPRPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& PassName,
+	FRDGTextureRef RenderTarget,
+	std::function<void(typename Shader::FParameters*)>&& SetPassParametersLambda,
+	typename Shader::FPermutationDomain Permutation = TShaderPermutationDomain()
+)
+{
+	FScreenPassTextureViewport ViewPort{ RenderTarget->Desc.Extent };
+
+	typename Shader::FParameters* PassParameters = GraphBuilder.AllocParameters<typename Shader::FParameters>();
+	PassParameters->ViewPort = GetScreenPassTextureViewportParameters(ViewPort);
+	PassParameters->sampler0 = TStaticSamplerState<>::GetRHI(); // Point clamped sampler
+
+	SetPassParametersLambda(PassParameters);
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(RenderTarget, ERenderTargetLoadAction::ENoAction);
+
+	const FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	TShaderMapRef<Shader> PixelShader(ShaderMap, Permutation);
+
+	AddDrawScreenPass(
+		GraphBuilder,
+		std::move(PassName),
+		FScreenPassViewInfo{GMaxRHIFeatureLevel},
+		ViewPort,
+		ViewPort,
+		PixelShader,
+		PassParameters
+	);
+}
+
+
+// Ensures common texture descriptions between all textures in the pipeline
+FRDGTextureRef CreateTextureFrom(FRDGBuilder& GraphBuilder, FRDGTextureRef InTex, const TCHAR* Name)
+{
+	FRDGTextureDesc Desc = InTex->Desc;
+	Desc.ClearValue = FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f));
+	Desc.Format = PF_FloatRGBA;
+	return GraphBuilder.CreateTexture(Desc, Name);
+}
+
+
+FRDGTextureRef CreateTangentFlowMap(
+	FRDGBuilder& GraphBuilder,
+	const FNPRToolsParametersProxy& NPRParameters,
+	bool bSmoothTangents,
+	FRDGTextureRef InColorTexture,
+	FRDGTextureRef InPrevTangentFlowMapTexture
+)
+{
+	FRDGTextureRef TangentFlowMapTexture = CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.TFM"));
+	FRDGTextureRef TempPingTexture = CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.TFM.Temp"));
+
+	AddNPRPass<FSobelPassPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("Sobel"),
+		TangentFlowMapTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InColorTexture);
+		}
+	);
+
+	AddNPRPass<FBlurEigenVerticalPassPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("EigenBlur(Vertical)"),
+		TempPingTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->InTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
+		}
+	);
+
+	FBlurEigenHorizontalPassPS::FPermutationDomain Permutation;
+	Permutation.Set<FBlurEigenHorizontalPassPS::FSmoothTangents>(bSmoothTangents);
+	AddNPRPass<FBlurEigenHorizontalPassPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("EigenBlur(Horizontal)"),
+		TangentFlowMapTexture,
+		[&](auto PassParameters)
+		{
+			if (bSmoothTangents)
+			{
+				check(InPrevTangentFlowMapTexture);
+				PassParameters->SmoothingAmount = NPRParameters.SmoothingAmount;
+				PassParameters->InPrevTangentFlowMap = GraphBuilder.CreateSRV(InPrevTangentFlowMapTexture);
+			}
+			PassParameters->InTexture = GraphBuilder.CreateSRV(TempPingTexture);
+		},
+		Permutation
+	);
+
+	return TangentFlowMapTexture;
+}
+
+FRDGTextureRef ConvertToYCC(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef InRGBTexture
+)
+{
+	FRDGTextureRef YCCTexture = CreateTextureFrom(GraphBuilder, InRGBTexture, TEXT("NPRTools.YCC"));
+
+	AddNPRPass<FConvertYCCPassPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("ConvertYCC"),
+		YCCTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InRGBTexture);
+		}
+	);
+
+	return YCCTexture;
+}
+
+FRDGTextureRef BilateralFilter(
+	FRDGBuilder& GraphBuilder,
+	const FNPRToolsParametersProxy& NPRParameters,
+	FRDGTextureRef InTexture,
+	FRDGTextureRef InTangentFlowMapTexture
+)
+{
+	FRDGTextureRef OutTexture = CreateTextureFrom(GraphBuilder, InTexture, TEXT("NPRTools.Bilateral"));
+	FRDGTextureRef TempTexture = CreateTextureFrom(GraphBuilder, InTexture, TEXT("NPRTools.Bilateral.Temp"));
+
+	// Perform bilateral filtering
+	for (int32 i = 0; i < NPRParameters.NumBilateralFilterPasses; i++)
+	{
+		FBilateralPassPS::FPermutationDomain Permutation;
+		Permutation.Set<FBilateralPassPS::FBilateralDirectionTangent>(true);
+
+		AddNPRPass<FBilateralPassPS>(
+			GraphBuilder,
+			RDG_EVENT_NAME("Bilateral(Tangent)"),
+			TempTexture,
+			[&](auto PassParameters)
+			{
+				PassParameters->SigmaD = NPRParameters.SigmaD1;
+				PassParameters->SigmaR = NPRParameters.SigmaR1;
+
+				PassParameters->InSceneColorYCCTexture = GraphBuilder.CreateSRV(i == 0 ? InTexture : OutTexture);
+				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMapTexture);
+			},
+			Permutation
+		);
+
+		Permutation.Set<FBilateralPassPS::FBilateralDirectionTangent>(false);
+
+		AddNPRPass<FBilateralPassPS>(
+			GraphBuilder,
+			RDG_EVENT_NAME("Bilateral(Gradient)"),
+			OutTexture,
+			[&](auto PassParameters)
+			{
+				PassParameters->SigmaD = NPRParameters.SigmaD2;
+				PassParameters->SigmaR = NPRParameters.SigmaR2;
+
+				PassParameters->InSceneColorYCCTexture = GraphBuilder.CreateSRV(TempTexture);
+				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMapTexture);
+			},
+			Permutation
+		);
+	}
+
+	return OutTexture;
+}
+
+FRDGTextureRef DifferenceOfGaussians(
+	FRDGBuilder& GraphBuilder,
+	const FNPRToolsParametersProxy& NPRParameters,
+	FRDGTextureRef InBilateralTexture,
+	FRDGTextureRef InTangentFlowMapTexture
+)
+{
+	FRDGTextureRef OutTexture = CreateTextureFrom(GraphBuilder, InBilateralTexture, TEXT("NPRTools.DoG"));
+	FRDGTextureRef TempTexture = CreateTextureFrom(GraphBuilder, InBilateralTexture, TEXT("NPRTools.DoG.Temp"));
+
+	AddNPRPass<FDoGGradientPassPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("DoG(Gradient)"),
+		TempTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->SigmaE = NPRParameters.SigmaE;				 // Following convention in paper where SigmaE' = SigmaE * K, 
+			PassParameters->SigmaP = NPRParameters.SigmaE * NPRParameters.K; // and allowing users to modify SigmaE and K
+			PassParameters->Tau = NPRParameters.Tau;
+
+			PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(InBilateralTexture);
+			PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMapTexture);
+		}
+	);
+
+	FDoGFlowPassPS::FPermutationDomain Permutation;
+	Permutation.Set<FDoGFlowPassPS::FThresholdingMethod>(static_cast<int>(NPRParameters.ThresholdingMethod));
+	AddNPRPass<FDoGFlowPassPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("DoG(Flow)"),
+		OutTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->SigmaM = NPRParameters.SigmaM;
+			PassParameters->Epsilon = NPRParameters.Epsilon;
+			PassParameters->Phi = NPRParameters.PhiEdge;
+
+			PassParameters->InDoGGradientTexture = GraphBuilder.CreateSRV(TempTexture);
+			PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMapTexture);
+		},
+		Permutation
+	);
+
+	return OutTexture;
+}
+
+FRDGTextureRef KuwaharaFilter(
+	FRDGBuilder& GraphBuilder,
+	const FNPRToolsParametersProxy& NPRParameters,
+	FRDGTextureRef InColorTexture,
+	FRDGTextureRef InTangentFlowMapTexture
+)
+{
+	FRDGTextureRef OutTexture = CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.Kuwahara"));
+
+	AddNPRPass<FKuwaharaPassPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("Kuwahara"),
+		OutTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->KernelSize = NPRParameters.KuwaharaKernelSize;
+			PassParameters->Hardness = NPRParameters.KuwaharaHardness;
+			PassParameters->Sharpness = NPRParameters.KuwaharaSharpness;
+			PassParameters->Alpha = NPRParameters.KuwaharaAlpha;
+			PassParameters->ZeroCrossing = NPRParameters.KuwaharaZeroCrossing;
+			PassParameters->Zeta = NPRParameters.KuwaharaZeta;
+
+			PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InColorTexture);
+			PassParameters->TangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMapTexture);
+		}
+	);
+
+	return OutTexture;
+}
+
+FRDGTextureRef QuantizeFilter(
+	FRDGBuilder& GraphBuilder,
+	const FNPRToolsParametersProxy& NPRParameters,
+	FRDGTextureRef InYCCTexture
+)
+{
+	FRDGTextureRef OutTexture = CreateTextureFrom(GraphBuilder, InYCCTexture, TEXT("NPRTools.Quantize"));
+
+	AddNPRPass<FQuantizePassPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("Quantization"),
+		OutTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->NumBins = NPRParameters.NumBins;
+			PassParameters->Phi = NPRParameters.PhiColor;
+
+			PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(InYCCTexture);
+		}
+	);
+
+	return OutTexture;
+}
+
+FRDGTextureRef OilPaintFilter(
+	FRDGBuilder& GraphBuilder,
+	const FNPRToolsParametersProxy& NPRParameters,
+	FRDGTextureRef InColorTexture
+)
+{
+	FRDGTextureRef OutTexture = CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.OilPaint"));
+	FRDGTextureRef TempTexture = CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.OilPaint.Temp"));
+
+	AddNPRPass<FOilPaintStrokesPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("OilPaint(Strokes)"),
+		TempTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->SrcContrast = 1.4f;
+			PassParameters->SrcBright = 1.0f;
+
+			PassParameters->BrushDetail = 0.1f;
+			PassParameters->StrokeBend = -1.0f;
+			PassParameters->BrushSize = 1.0f;
+
+			PassParameters->InColorTexture = GraphBuilder.CreateSRV(InColorTexture);
+		}
+	);
+
+	AddNPRPass<FOilPaintReliefLightingPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("OilPaint(Relief)"),
+		OutTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->PaintSpec = 0.15f;
+
+			PassParameters->InColorTexture = GraphBuilder.CreateSRV(TempTexture);
+		}
+	);
+
+	return OutTexture;
+}
+
+
 bool NPRTools::ExecuteNPRPipeline(
 	FRDGBuilder& GraphBuilder,
 	const FNPRToolsParametersProxy& NPRParameters,
@@ -76,250 +386,90 @@ bool NPRTools::ExecuteNPRPipeline(
 	bool bHistoryExists = History && History->IsValid();
 	bool bSmoothTangents = NPRParameters.bSmoothTangents && bHistoryExists;
 
-	FRDGTextureRef PrevTangentFlowMapTexture;
+	FRDGTextureRef PrevTangentFlowMapTexture = nullptr;
 	if (bSmoothTangents)
 	{
 		PrevTangentFlowMapTexture = GraphBuilder.RegisterExternalTexture(History->PreviousTangentFlowMapTexture);
 	}
 
-	// Create a texture to hold the output of our Sobel filter
-	// It should be the same format etc as the scene colour texture
-	FRDGTextureDesc TextureDesc = InColorTexture->Desc;
-	TextureDesc.ClearValue = FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f));
-	// TODO: All textures may not need to have 4 channels
-	TextureDesc.Format = PF_FloatRGBA;
-
-	FRDGTextureRef TangentFlowMapTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TFM"));
-	FRDGTextureRef ColorChangeTexture    = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.ColorChange"));
-	FRDGTextureRef TempPingTexture		 = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TempPing"));
-	FRDGTextureRef TempPongTexture		 = GraphBuilder.CreateTexture(TextureDesc, TEXT("NPRTools.TempPong"));
-
-	AddClearRenderTargetPass(GraphBuilder, TangentFlowMapTexture);
-	AddClearRenderTargetPass(GraphBuilder, ColorChangeTexture);
-	AddClearRenderTargetPass(GraphBuilder, TempPingTexture);
-	AddClearRenderTargetPass(GraphBuilder, TempPongTexture);
-
-	// We want to perform our postprocessing to the entire viewport
-	FScreenPassTextureViewport ViewPort(TextureDesc.Extent);
-	FScreenPassViewInfo ViewInfo(GMaxRHIFeatureLevel);
-
-	// Helper function to dispatch pass to avoid boilerplate
-	auto AddPass = [&]<typename Shader, typename SetPassParametersLambdaType>(
-		FRDGEventName&& PassName,
-		FRDGTextureRef RenderTarget,
-		SetPassParametersLambdaType&& SetPassParametersLambda,
-		typename Shader::FPermutationDomain Permutation = TShaderPermutationDomain())
-	{
-		typename Shader::FParameters* PassParameters = GraphBuilder.AllocParameters<typename Shader::FParameters>();
-		PassParameters->ViewPort = GetScreenPassTextureViewportParameters(ViewPort);
-		PassParameters->sampler0 = TStaticSamplerState<>::GetRHI(); // Point clamped sampler
-
-		SetPassParametersLambda(PassParameters);
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(RenderTarget, ERenderTargetLoadAction::ENoAction);
-
-		const FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-		TShaderMapRef<Shader> PixelShader(ShaderMap, Permutation);
-
-		AddDrawScreenPass(
-			GraphBuilder,
-			std::move(PassName),
-			ViewInfo,
-			ViewPort,
-			ViewPort,
-			PixelShader,
-			PassParameters
-		);
-	};
-
 	// Calculate tangent flow map
-	{
-		AddPass.operator()<FSobelPassPS>(
-			RDG_EVENT_NAME("Sobel"),
-			TangentFlowMapTexture,
-			[&](auto PassParameters)
-			{
-				PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InColorTexture);
-			}
-		);
-
-		AddPass.operator()<FBlurEigenVerticalPassPS>(
-			RDG_EVENT_NAME("EigenBlur(Vertical)"),
-			TempPingTexture,
-			[&](auto PassParameters)
-			{
-				PassParameters->InTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
-			}
-		);
-
-		FBlurEigenHorizontalPassPS::FPermutationDomain Permutation;
-		Permutation.Set<FBlurEigenHorizontalPassPS::FSmoothTangents>(bSmoothTangents);
-		AddPass.operator()<FBlurEigenHorizontalPassPS>(
-			RDG_EVENT_NAME("EigenBlur(Horizontal)"),
-			TangentFlowMapTexture,
-			[&](auto PassParameters)
-			{
-				if (bSmoothTangents)
-				{
-					PassParameters->SmoothingAmount = NPRParameters.SmoothingAmount;
-					PassParameters->InPrevTangentFlowMap = GraphBuilder.CreateSRV(PrevTangentFlowMapTexture);
-				}
-				PassParameters->InTexture = GraphBuilder.CreateSRV(TempPingTexture);
-			},
-			Permutation
-		);
-	}
-
-	AddPass.operator()<FConvertYCCPassPS>(
-		RDG_EVENT_NAME("ConvertYCC"),
-		TempPongTexture,
-		[&](auto PassParameters)
-		{
-			PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InColorTexture);
-		}
-	);
-
-	// Copy ensures that the ping-ponging will be correct for multiple bilateral filters
-	AddCopyTexturePass(
+	FRDGTextureRef TangentFlowMapTexture = CreateTangentFlowMap(
 		GraphBuilder,
-		TempPongTexture,
-		ColorChangeTexture
+		NPRParameters,
+		bSmoothTangents,
+		InColorTexture,
+		PrevTangentFlowMapTexture
 	);
 
-	// Perform bilateral filtering
-	for (int32 i = 0; i < NPRParameters.NumBilateralFilterPasses; i++)
-	{
-		FBilateralPassPS::FPermutationDomain Permutation;
-		Permutation.Set<FBilateralPassPS::FBilateralDirectionTangent>(true);
+	FRDGTextureRef YCCTexture = ConvertToYCC(GraphBuilder, InColorTexture);
 
-		AddPass.operator()<FBilateralPassPS>(
-			RDG_EVENT_NAME("Bilateral(Tangent)"),
-			TempPingTexture,
-			[&](auto PassParameters)
-			{
-				PassParameters->SigmaD = NPRParameters.SigmaD1;
-				PassParameters->SigmaR = NPRParameters.SigmaR1;
+	FRDGTextureRef BilateralTexture = BilateralFilter(
+		GraphBuilder,
+		NPRParameters,
+		YCCTexture,
+		TangentFlowMapTexture
+	);
 
-				PassParameters->InSceneColorYCCTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
-				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
-			},
-			Permutation
-		);
+	FRDGTextureRef DoGTexture = DifferenceOfGaussians(
+		GraphBuilder,
+		NPRParameters,
+		BilateralTexture,
+		TangentFlowMapTexture
+	);
 
-		Permutation.Set<FBilateralPassPS::FBilateralDirectionTangent>(false);
-
-		AddPass.operator()<FBilateralPassPS>(
-			RDG_EVENT_NAME("Bilateral(Gradient)"),
-			ColorChangeTexture,
-			[&](auto PassParameters)
-			{
-				PassParameters->SigmaD = NPRParameters.SigmaD2;
-				PassParameters->SigmaR = NPRParameters.SigmaR2;
-
-				PassParameters->InSceneColorYCCTexture = GraphBuilder.CreateSRV(TempPingTexture);
-				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
-			},
-			Permutation
-		);
-	}
-
-	// Perform Difference of Gaussians
-	{
-		AddPass.operator()<FDoGGradientPassPS>(
-			RDG_EVENT_NAME("DoG(Gradient)"),
-			TempPingTexture,
-			[&](auto PassParameters)
-			{
-				PassParameters->SigmaE = NPRParameters.SigmaE;				 // Following convention in paper where SigmaE' = SigmaE * K, 
-				PassParameters->SigmaP = NPRParameters.SigmaE * NPRParameters.K; // and allowing users to modify SigmaE and K
-				PassParameters->Tau = NPRParameters.Tau;
-
-				PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
-				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
-			}
-		);
-
-		FDoGFlowPassPS::FPermutationDomain Permutation;
-		Permutation.Set<FDoGFlowPassPS::FThresholdingMethod>(static_cast<int>(NPRParameters.ThresholdingMethod));
-		AddPass.operator()<FDoGFlowPassPS>(
-			RDG_EVENT_NAME("DoG(Flow)"),
-			TempPongTexture,
-			[&](auto PassParameters)
-			{
-				PassParameters->SigmaM = NPRParameters.SigmaM;
-				PassParameters->Epsilon = NPRParameters.Epsilon;
-				PassParameters->Phi = NPRParameters.PhiEdge;
-
-				PassParameters->InDoGGradientTexture = GraphBuilder.CreateSRV(TempPingTexture);
-				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
-			},
-			Permutation
-		);
-	}
-
+	FRDGTextureRef ProcessedColorTexture = OilPaintFilter(
+		GraphBuilder,
+		NPRParameters,
+		InColorTexture
+	);
+	/*
 	if (NPRParameters.bEnableQuantization && NPRParameters.bCompositeColor)
 	{
 		if (NPRParameters.bUseKuwahara)
 		{
-			// Run Kuwahara pass
-			AddPass.operator()<FKuwaharaPassPS>(
-				RDG_EVENT_NAME("Kuwahara"),
-				TempPingTexture,
-				[&](auto PassParameters)
-				{
-					PassParameters->KernelSize = NPRParameters.KuwaharaKernelSize;
-					PassParameters->Hardness = NPRParameters.KuwaharaHardness;
-					PassParameters->Sharpness = NPRParameters.KuwaharaSharpness;
-					PassParameters->Alpha = NPRParameters.KuwaharaAlpha;
-					PassParameters->ZeroCrossing = NPRParameters.KuwaharaZeroCrossing;
-					PassParameters->Zeta = NPRParameters.KuwaharaZeta;
-
-					PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InColorTexture);
-					PassParameters->TangentFlowMapTexture = GraphBuilder.CreateSRV(TangentFlowMapTexture);
-				}
+			ProcessedColorTexture = KuwaharaFilter(
+				GraphBuilder,
+				NPRParameters,
+				InColorTexture,
+				TangentFlowMapTexture
 			);
 		}
 		else
 		{
-			// Perform Quantization
-			AddPass.operator()<FQuantizePassPS>(
-				RDG_EVENT_NAME("Quantization"),
-				TempPingTexture,
-				[&](auto PassParameters)
-				{
-					PassParameters->NumBins = NPRParameters.NumBins;
-					PassParameters->Phi = NPRParameters.PhiColor;
-
-					PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(ColorChangeTexture);
-				}
+			ProcessedColorTexture = QuantizeFilter(
+				GraphBuilder,
+				NPRParameters,
+				BilateralTexture
 			);
 		}
 	}
 	else
 	{
-		// Copy scene colour texture as that has not been converted to YCC
-		AddCopyTexturePass(GraphBuilder, InColorTexture, TempPingTexture);
+		ProcessedColorTexture = InColorTexture;
 	}
+	*/
 
 	if (NPRParameters.bCompositeColor && NPRParameters.bCompositeEdges)
 	{
 		// Combine edges and quantized color
-		AddPass.operator()<FCombineEdgesPassPS>(
+		AddNPRPass<FCombineEdgesPassPS>(
+			GraphBuilder,
 			RDG_EVENT_NAME("CombineEdges"),
 			OutColorTexture,
 			[&](auto PassParameters)
 			{
-				PassParameters->InColorTexture = GraphBuilder.CreateSRV(TempPingTexture);
-				PassParameters->InEdgesTexture = GraphBuilder.CreateSRV(TempPongTexture);
+				PassParameters->InColorTexture = GraphBuilder.CreateSRV(ProcessedColorTexture);
+				PassParameters->InEdgesTexture = GraphBuilder.CreateSRV(DoGTexture);
 			}
 		);
 	}
 	else if (NPRParameters.bCompositeColor)
 	{
-		AddCopyTexturePass(GraphBuilder, TempPingTexture, OutColorTexture);
+		AddCopyTexturePass(GraphBuilder, ProcessedColorTexture, OutColorTexture);
 	}
 	else if (NPRParameters.bCompositeEdges)
 	{
-		AddCopyTexturePass(GraphBuilder, TempPongTexture, OutColorTexture);
+		AddCopyTexturePass(GraphBuilder, DoGTexture, OutColorTexture);
 	}
 	else
 	{
@@ -327,6 +477,7 @@ bool NPRTools::ExecuteNPRPipeline(
 	}
 
 	// Save tangent flow map for next frame for temporal smoothing
+	// TODO: Not if history exists, but if pointer to history object is valid
 	if (bHistoryExists)
 	{
 		GraphBuilder.QueueTextureExtraction(TangentFlowMapTexture, &History->PreviousTangentFlowMapTexture);

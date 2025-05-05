@@ -210,10 +210,10 @@ class FCombineEdgesPassPS : public FGlobalShader
 };
 
 
-class FOilPaintReliefLightingPS : public FGlobalShader
+class FOilPaintStrokesPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FOilPaintReliefLightingPS);
-	SHADER_USE_PARAMETER_STRUCT(FOilPaintReliefLightingPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FOilPaintStrokesPS);
+	SHADER_USE_PARAMETER_STRUCT(FOilPaintStrokesPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
@@ -221,7 +221,6 @@ class FOilPaintReliefLightingPS : public FGlobalShader
 
 		SHADER_PARAMETER(float, SrcContrast)
 		SHADER_PARAMETER(float, SrcBright)
-		SHADER_PARAMETER(float, PaintSpec)
 
 		SHADER_PARAMETER(float, BrushDetail)
 		SHADER_PARAMETER(float, StrokeBend)
@@ -234,22 +233,16 @@ class FOilPaintReliefLightingPS : public FGlobalShader
 };
 
 
-class FOilPaintStrokesPS : public FGlobalShader
+class FOilPaintReliefLightingPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FOilPaintStrokesPS);
-	SHADER_USE_PARAMETER_STRUCT(FOilPaintStrokesPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FOilPaintReliefLightingPS);
+	SHADER_USE_PARAMETER_STRUCT(FOilPaintReliefLightingPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
-		SHADER_PARAMETER(float, SrcContrast)
-		SHADER_PARAMETER(float, SrcBright)
 		SHADER_PARAMETER(float, PaintSpec)
-
-		SHADER_PARAMETER(float, BrushDetail)
-		SHADER_PARAMETER(float, StrokeBend)
-		SHADER_PARAMETER(float, BrushSize)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InColorTexture)
 

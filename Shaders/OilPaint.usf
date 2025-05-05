@@ -11,41 +11,52 @@ SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 /*
 SrcContrast = 1.4
 SrcBright = 1.;
-PaintSpec = .15;
 
 BrushDetail = 0.1;
 StrokeBend = -1.;
 BrushSize = 1.;
+
+PaintSpec = .15;
  */
+
+// Brush strokes parameters
 float SrcContrast;
 float SrcBright;
-float PaintSpec;
 
 float BrushDetail;
 float StrokeBend;
 float BrushSize;
 
+// Relief lighting parameters
+float PaintSpec;
+
+
 Texture2D<float4> InColorTexture;
 SamplerState sampler0;
 
+float2 getRand2(int idx)
+{
+	float2 uv = float2(idx % ViewPort_Extent.x, idx / ViewPort_Extent.y) * ViewPort_ExtentInverse;
+    float noiseX = (frac(sin(dot(uv, float2(12.9898,78.233) * 2.0)) * 43758.5453));
+    float noiseY = sqrt(1 - noiseX * noiseX);
+    return float2(noiseX, noiseY);
+}
+
+float4 getRand(int idx)
+{
+	return float4(getRand2(idx), getRand2(2 * idx));
+}
 
 float4 getCol(float2 pos)
 {
-	uint2 Res = ViewPort_Extent;
+	float2 Res = (float2) (ViewPort_Extent);
+	float2 Res0 = (float2) (ViewPort_Extent);
 
+	float lod = 1.;
     // use max(...) for fitting full image or min(...) for fitting only one dir
-	float2 uv = (pos - .5 * Res) * min(Res.y / Res.y, Res.x / Res.x) / Res + .5;
-	float lod = 1.5 + log2(Res.x / 600.);
-
-	float4 texSample = InColorTexture.SampleLevel(sampler0, uv, lod);
-	float4 col = clamp(((texSample - .5) * SrcContrast + .5 * SrcBright), 0., 1.);
-
+	float2 uv = (pos - .5 * Res) * min(Res0.y / Res.y, Res0.x / Res.x) / Res0 + .5;
+	float4 col = InColorTexture.SampleLevel(sampler0, uv, lod + .7);
 	return col;
-}
-
-float3 getValCol(float2 pos)
-{
-	return getCol(pos).xyz;
 }
 
 float compsignedmax(float3 c)
@@ -63,15 +74,9 @@ float2 getGradMax(float2 pos, float eps)
 {
 	float2 d = float2(eps, 0);
 	return float2(
-        compsignedmax(getValCol(pos + d.xy) - getValCol(pos - d.xy)),
-        compsignedmax(getValCol(pos + d.yx) - getValCol(pos - d.yx))
+        compsignedmax(getCol(pos + d.xy).xyz - getCol(pos - d.xy).xyz),
+        compsignedmax(getCol(pos + d.yx).xyz - getCol(pos - d.yx).xyz)
         ) / eps / 2.;
-}
-
-float2 quad(float2 p1, float2 p2, float2 p3, float2 p4, int idx)
-{
-	float2 p[6] = { p1, p2, p3, p2, p4, p3 };
-	return p[idx % 6];
 }
 
 
@@ -81,9 +86,9 @@ float4 OilPaintStrokesPS(
 {
 	int2 Res = ViewPort_Extent;
 	float2 pos = InUV * Res;
-
-	float4 fragColor = 0.0f;
-
+    
+	float4 fragColor = float4(0, 0, 0, 1);
+    
 	int pidx0 = 0;
     
 	float3 brushPos;
@@ -92,12 +97,10 @@ float4 OilPaintStrokesPS(
 
     //number of grid positions on highest detail level
 	int NumGrid = int(float(0x10000 / 2) * min(pow(Res.x / 1920., .5), 1.) * (1. - ls));
-
 	float aspect = Res.x / Res.y;
 	int NumX = int(sqrt(float(NumGrid) * aspect) + .5);
 	int NumY = int(sqrt(float(NumGrid) / aspect) + .5);
-
-	int pidx2;
+	int pidx2 /*= NumTriangles/2-pidx*/;
 
     // calc max layer NumY*layerScaleFact^maxLayer==10. - so min-scale layer has at least 10 strokes in y
 	int maxLayer = int(log2(10. / float(NumY)) / log2(layerScaleFact));
@@ -116,26 +119,22 @@ float4 OilPaintStrokesPS(
 			int nx = ni % 3 - 1;
 			int ny = ni / 3 - 1;
 			// index centerd in cell
-			int n0 = int(dot(floor(float2(InUV * float2(NumX2, NumY2))), float2(1, NumX2)));
+			int n0 = int(dot(floor(float2(pos / Res.xy * float2(NumX2, NumY2))), float2(1, NumX2)));
 			pidx2 = n0 + NumX2 * ny + nx;
-
 			int pidx = pidx0 + pidx2;
-			// TODO: Seed the RNG better
-			float3 rnd = Rand3DPCG32(pidx.xxx);
-
 			brushPos.xy = (float2(pidx2 % NumX2, pidx2 / NumX2) + .5) / float2(NumX2, NumY2) * Res;
 			float gridW = Res.x / float(NumX2);
 			float gridW0 = Res.x / float(NumX);
 			// add some noise to grid pos
-			brushPos.xy += gridW * (rnd.xy - .5);
+			brushPos.xy += gridW * (getRand(pidx).xy - .5);
 			// more trigonal grid by displacing every 2nd line
 			brushPos.x += gridW * .5 * (float((pidx2 / NumX2) % 2) - .5);
     
 			float2 g;
-			g = getGradMax(brushPos.xy, gridW * 1.) * .5 + getGradMax(brushPos.xy, gridW * .12) * .5 + .0003 * sin(InUV * 20.); // add some gradient to plain areas
+			g = getGradMax(brushPos.xy, gridW * 1.) * .5 + getGradMax(brushPos.xy, gridW * .12) * .5 + .0003 * sin(pos / Res * 20.); // add some gradient to plain areas
 			float gl = length(g);
 			float2 n = normalize(g);
-			float2 t = (n.yx * float2(1, -1));
+			float2 t = n.yx * float2(1, -1);
     
 			brushPos.z = .5;
 
@@ -143,8 +142,8 @@ float4 OilPaintStrokesPS(
 			float wh = (gridW - .6 * gridW0) * 1.2;
 			float lh = wh;
 			float stretch = sqrt(1.5 * pow(3., 1. / float(layer + 1)));
-			wh *= BrushSize * (.8 + .4 * rnd.y) / stretch;
-			lh *= BrushSize * (.8 + .4 * rnd.z) * stretch;
+			wh *= BrushSize * (.8 + .4 * getRand(pidx).y) / stretch;
+			lh *= BrushSize * (.8 + .4 * getRand(pidx).z) * stretch;
 			float wh0 = wh;
     
 			wh /= 1. - .25 * abs(StrokeBend);
@@ -165,7 +164,12 @@ float4 OilPaintStrokesPS(
 			s = clamp((s - .5) * 2., 0., 1.);
 			float2 uv0 = uv;
     
+			// brush hair noise
+			float pat = length(getRand(pidx));
+			float4 rnd = getRand(pidx);
+    
 			s0 = s;
+			s *= .7 * pat;
 			uv0.y = 1. - uv0.y;
 			float smask = clamp(max(cos(uv0.x * PI * 2. + 1.5 * (rnd.x - .5)), (1.5 * exp(-uv0.y * uv0.y / .15 / .15) + .2) * (1. - uv0.y)) + .1, 0., 1.);
 			s += s0 * smask;
