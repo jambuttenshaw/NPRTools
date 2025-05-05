@@ -101,6 +101,25 @@ public:
 	float KuwaharaZeta;
 
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
+	bool bUseOilPaint;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
+	float OilPaintBrushDetail;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
+	float OilPaintStrokeBend;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
+	float OilPaintBrushSize;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
+	bool bOilPaintEnableReliefLighting;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
+	float OilPaintPaintSpecular;
+
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
 	bool bCompositeColor;
 

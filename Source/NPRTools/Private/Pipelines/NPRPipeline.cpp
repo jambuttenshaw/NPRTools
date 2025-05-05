@@ -335,24 +335,26 @@ FRDGTextureRef OilPaintFilter(
 		TempTexture,
 		[&](auto PassParameters)
 		{
-			PassParameters->SrcContrast = 1.4f;
-			PassParameters->SrcBright = 1.0f;
-
-			PassParameters->BrushDetail = 0.1f;
-			PassParameters->StrokeBend = -1.0f;
-			PassParameters->BrushSize = 1.0f;
+			PassParameters->BrushDetail = NPRParameters.OilPaintBrushDetail;
+			PassParameters->StrokeBend = NPRParameters.OilPaintStrokeBend;
+			PassParameters->BrushSize = NPRParameters.OilPaintBrushSize;
 
 			PassParameters->InColorTexture = GraphBuilder.CreateSRV(InColorTexture);
 		}
 	);
 
+	if (!NPRParameters.bOilPaintEnableReliefLighting)
+	{
+		return TempTexture;
+	}
+		
 	AddNPRPass<FOilPaintReliefLightingPS>(
 		GraphBuilder,
 		RDG_EVENT_NAME("OilPaint(Relief)"),
 		OutTexture,
 		[&](auto PassParameters)
 		{
-			PassParameters->PaintSpec = 0.15f;
+			PassParameters->PaintSpec = NPRParameters.OilPaintPaintSpecular;
 
 			PassParameters->InColorTexture = GraphBuilder.CreateSRV(TempTexture);
 		}
@@ -417,13 +419,9 @@ bool NPRTools::ExecuteNPRPipeline(
 		TangentFlowMapTexture
 	);
 
-	FRDGTextureRef ProcessedColorTexture = OilPaintFilter(
-		GraphBuilder,
-		NPRParameters,
-		InColorTexture
-	);
-	/*
-	if (NPRParameters.bEnableQuantization && NPRParameters.bCompositeColor)
+	// Process colour
+	FRDGTextureRef ProcessedColorTexture = InColorTexture;
+	if (NPRParameters.bCompositeColor)
 	{
 		if (NPRParameters.bUseKuwahara)
 		{
@@ -434,7 +432,15 @@ bool NPRTools::ExecuteNPRPipeline(
 				TangentFlowMapTexture
 			);
 		}
-		else
+		else if (NPRParameters.bUseOilPaint)
+		{
+			ProcessedColorTexture = OilPaintFilter(
+				GraphBuilder,
+				NPRParameters,
+				InColorTexture
+			);
+		}
+		else if (NPRParameters.bEnableQuantization)
 		{
 			ProcessedColorTexture = QuantizeFilter(
 				GraphBuilder,
@@ -443,11 +449,6 @@ bool NPRTools::ExecuteNPRPipeline(
 			);
 		}
 	}
-	else
-	{
-		ProcessedColorTexture = InColorTexture;
-	}
-	*/
 
 	if (NPRParameters.bCompositeColor && NPRParameters.bCompositeEdges)
 	{

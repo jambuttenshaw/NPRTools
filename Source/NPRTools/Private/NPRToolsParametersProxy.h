@@ -46,6 +46,13 @@ struct FNPRToolsParametersProxy
 	float KuwaharaZeroCrossing;
 	float KuwaharaZeta;
 
+	bool bUseOilPaint;
+	float OilPaintBrushDetail;
+	float OilPaintStrokeBend;
+	float OilPaintBrushSize;
+	bool bOilPaintEnableReliefLighting;
+	float OilPaintPaintSpecular;
+
 	// Composition parameters
 	bool bCompositeColor;
 	bool bCompositeEdges;

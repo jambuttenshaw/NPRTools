@@ -219,9 +219,6 @@ class FOilPaintStrokesPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
-		SHADER_PARAMETER(float, SrcContrast)
-		SHADER_PARAMETER(float, SrcBright)
-
 		SHADER_PARAMETER(float, BrushDetail)
 		SHADER_PARAMETER(float, StrokeBend)
 		SHADER_PARAMETER(float, BrushSize)

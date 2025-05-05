@@ -9,9 +9,6 @@ SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
 #define QUALITY_PERCENT 85
 
 /*
-SrcContrast = 1.4
-SrcBright = 1.;
-
 BrushDetail = 0.1;
 StrokeBend = -1.;
 BrushSize = 1.;
@@ -20,9 +17,6 @@ PaintSpec = .15;
  */
 
 // Brush strokes parameters
-float SrcContrast;
-float SrcBright;
-
 float BrushDetail;
 float StrokeBend;
 float BrushSize;
@@ -30,9 +24,9 @@ float BrushSize;
 // Relief lighting parameters
 float PaintSpec;
 
-
 Texture2D<float4> InColorTexture;
 SamplerState sampler0;
+
 
 float2 getRand2(int idx)
 {
@@ -44,8 +38,9 @@ float2 getRand2(int idx)
 
 float4 getRand(int idx)
 {
-	return float4(getRand2(idx), getRand2(2 * idx));
+	return float4(getRand2(2 * idx), getRand2(2 * idx + 1));
 }
+
 
 float4 getCol(float2 pos)
 {
@@ -165,7 +160,7 @@ float4 OilPaintStrokesPS(
 			float2 uv0 = uv;
     
 			// brush hair noise
-			float pat = length(getRand(pidx));
+			float pat = length(getRand(pidx + length(uv * 1.5 * sqrt(Res.x / 600.) * float2(.06, .006))));
 			float4 rnd = getRand(pidx);
     
 			s0 = s;

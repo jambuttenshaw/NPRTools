@@ -3,7 +3,11 @@
 
 FNPRToolsParametersProxy::FNPRToolsParametersProxy(const UNPRToolsParametersDataAsset* ParamsAsset)
 {
-	check(ParamsAsset);
+	// If an invalid params asset is passed in, the proxy will be constructed from the default parameters
+	if(!ParamsAsset)
+	{
+		ParamsAsset = GetDefault<UNPRToolsParametersDataAsset>();
+	}
 
 	bEnable = ParamsAsset->bEnable;
 
@@ -37,6 +41,13 @@ FNPRToolsParametersProxy::FNPRToolsParametersProxy(const UNPRToolsParametersData
 	KuwaharaAlpha = ParamsAsset->KuwaharaAlpha;
 	KuwaharaZeroCrossing = ParamsAsset->KuwaharaZeroCrossing;
 	KuwaharaZeta = ParamsAsset->KuwaharaZeta;
+
+	bUseOilPaint = ParamsAsset->bUseOilPaint;
+	OilPaintBrushDetail = ParamsAsset->OilPaintBrushDetail;
+	OilPaintStrokeBend = ParamsAsset->OilPaintStrokeBend;
+	OilPaintBrushSize = ParamsAsset->OilPaintBrushSize;
+	bOilPaintEnableReliefLighting = ParamsAsset->bOilPaintEnableReliefLighting;
+	OilPaintPaintSpecular = ParamsAsset->OilPaintPaintSpecular;
 
 	bCompositeColor = ParamsAsset->bCompositeColor;
 	bCompositeEdges = ParamsAsset->bCompositeEdges;

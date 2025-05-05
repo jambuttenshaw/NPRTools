@@ -39,6 +39,13 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	KuwaharaZeroCrossing = 0.58f;
 	KuwaharaZeta = 0.1f;
 
+	bUseOilPaint = false;
+	OilPaintBrushDetail = 1.0f;
+	OilPaintStrokeBend = -1.0f;
+	OilPaintBrushSize = 1.0f;
+	bOilPaintEnableReliefLighting = true;
+	OilPaintPaintSpecular = 0.75f;
+
 	bCompositeColor = true;
 	bCompositeEdges = true;
 }
