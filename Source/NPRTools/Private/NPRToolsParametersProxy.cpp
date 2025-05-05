@@ -49,6 +49,11 @@ FNPRToolsParametersProxy::FNPRToolsParametersProxy(const UNPRToolsParametersData
 	bOilPaintEnableReliefLighting = ParamsAsset->bOilPaintEnableReliefLighting;
 	OilPaintPaintSpecular = ParamsAsset->OilPaintPaintSpecular;
 
+	bUsePencilSketch = ParamsAsset->bUsePencilSketch;
+	PencilSketchThreshold = ParamsAsset->PencilSketchThreshold;
+	PencilSketchSensitivity = ParamsAsset->PencilSketchSensitivity;
+	PencilSketchBoldness = ParamsAsset->PencilSketchBoldness;
+
 	bCompositeColor = ParamsAsset->bCompositeColor;
 	bCompositeEdges = ParamsAsset->bCompositeEdges;
 }

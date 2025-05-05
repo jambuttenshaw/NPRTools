@@ -53,6 +53,11 @@ struct FNPRToolsParametersProxy
 	bool bOilPaintEnableReliefLighting;
 	float OilPaintPaintSpecular;
 
+	bool bUsePencilSketch;
+	float PencilSketchThreshold;
+	float PencilSketchSensitivity;
+	float PencilSketchBoldness;
+
 	// Composition parameters
 	bool bCompositeColor;
 	bool bCompositeEdges;

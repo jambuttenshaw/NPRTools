@@ -246,3 +246,23 @@ class FOilPaintReliefLightingPS : public FGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
+
+
+class FPencilSketchPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPencilSketchPS);
+	SHADER_USE_PARAMETER_STRUCT(FPencilSketchPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
+
+		SHADER_PARAMETER(float, Threshold)
+		SHADER_PARAMETER(float, Sensitivity)
+		SHADER_PARAMETER(float, Boldness)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InColorTexture)
+
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};

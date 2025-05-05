@@ -24,3 +24,5 @@ IMPLEMENT_GLOBAL_SHADER(FCombineEdgesPassPS, "/NPRTools/CombineEdges.usf", "Comb
 IMPLEMENT_GLOBAL_SHADER(FOilPaintStrokesPS, "/NPRTools/OilPaint.usf", "OilPaintStrokesPS", SF_Pixel);
 
 IMPLEMENT_GLOBAL_SHADER(FOilPaintReliefLightingPS, "/NPRTools/OilPaint.usf", "OilPaintReliefLightingPS", SF_Pixel);
+
+IMPLEMENT_GLOBAL_SHADER(FPencilSketchPS, "/NPRTools/PencilSketch.usf", "PencilSketchPS", SF_Pixel);

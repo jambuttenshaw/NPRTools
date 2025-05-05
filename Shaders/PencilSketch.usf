@@ -1,0 +1,88 @@
+// Adapted from: https://www.shadertoy.com/view/ldXfRj
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+
+#define RANGE 16.
+#define STEP 2.
+#define ANGLENUM 4.
+
+float Threshold;
+float Sensitivity;
+float Boldness;
+
+Texture2D<float4> InColorTexture;
+SamplerState sampler0;
+
+
+float4 getCol(float2 pos)
+{
+	float2 uv = pos * ViewPort_ExtentInverse;
+	return InColorTexture.Sample(sampler0, uv);
+}
+
+float getVal(float2 pos)
+{
+	float4 c = getCol(pos);
+	return dot(c.xyz, float3(0.2126, 0.7152, 0.0722));
+}
+
+float2 getGrad(float2 pos, float eps)
+{
+	float2 d = float2(eps, 0);
+	return float2(
+        getVal(pos + d.xy) - getVal(pos - d.xy),
+        getVal(pos + d.yx) - getVal(pos - d.yx)
+    ) / eps / 2.;
+}
+
+void pR(inout float2 p, float a)
+{
+	p = cos(a) * p + sin(a) * float2(p.y, -p.x);
+}
+float absCircular(float t)
+{
+	float a = floor(t + 0.5);
+	return frac(abs(a - t));
+}
+
+//---------------------------------------------------------
+// Let's do this!
+//---------------------------------------------------------
+float4 PencilSketchPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+	float2 pos = InUV * ViewPort_Extent;
+	float weight = 1.0;
+    
+	for (float j = 0.; j < ANGLENUM; j += 1.)
+	{
+		float2 dir = float2(1, 0);
+		pR(dir, j * PI / ANGLENUM);
+        
+		float2 grad = float2(-dir.y, dir.x);
+        
+		for (float i = -RANGE; i <= RANGE; i += STEP)
+		{
+			float2 pos2 = pos + normalize(dir) * i;
+            
+            // video texture wrap can't be set to anything other than clamp  (-_-)
+			if (pos2.y < 0. || pos2.x < 0. || pos2.x > ViewPort_Extent.x || pos2.y > ViewPort_Extent.y)
+				continue;
+            
+			float2 g = getGrad(pos2, 1.);
+			if (length(g) < Threshold)
+				continue;
+            
+			weight -= pow(abs(dot(normalize(grad), normalize(g))), Sensitivity) / floor((2. * RANGE + 1.) / STEP) / ANGLENUM;
+		}
+	}
+    
+	float4 col = getVal(pos);
+	float4 background = lerp(col, 1, Boldness);
+    
+	return lerp(0, background, weight);
+}

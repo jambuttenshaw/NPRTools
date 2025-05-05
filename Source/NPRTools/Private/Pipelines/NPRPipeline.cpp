@@ -363,6 +363,30 @@ FRDGTextureRef OilPaintFilter(
 	return OutTexture;
 }
 
+FRDGTextureRef PencilSketchFilter(
+	FRDGBuilder& GraphBuilder,
+	const FNPRToolsParametersProxy& NPRParameters,
+	FRDGTextureRef InColorTexture
+)
+{
+	FRDGTextureRef OutTexture = CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.PencilSketch"));
+	AddNPRPass<FPencilSketchPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("PencilSketch"),
+		OutTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->Threshold = NPRParameters.PencilSketchThreshold;
+			PassParameters->Sensitivity = NPRParameters.PencilSketchSensitivity;
+			PassParameters->Boldness = NPRParameters.PencilSketchBoldness;
+
+			PassParameters->InColorTexture = GraphBuilder.CreateSRV(InColorTexture);
+		}
+	);
+
+	return OutTexture;
+}
+
 
 bool NPRTools::ExecuteNPRPipeline(
 	FRDGBuilder& GraphBuilder,
@@ -435,6 +459,14 @@ bool NPRTools::ExecuteNPRPipeline(
 		else if (NPRParameters.bUseOilPaint)
 		{
 			ProcessedColorTexture = OilPaintFilter(
+				GraphBuilder,
+				NPRParameters,
+				InColorTexture
+			);
+		}
+		else if (NPRParameters.bUsePencilSketch)
+		{
+			ProcessedColorTexture = PencilSketchFilter(
 				GraphBuilder,
 				NPRParameters,
 				InColorTexture

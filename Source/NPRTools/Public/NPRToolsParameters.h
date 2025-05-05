@@ -120,6 +120,19 @@ public:
 	float OilPaintPaintSpecular;
 
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Pencil Sketch")
+	bool bUsePencilSketch;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Pencil Sketch")
+	float PencilSketchThreshold;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Pencil Sketch")
+	float PencilSketchSensitivity;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Pencil Sketch")
+	float PencilSketchBoldness;
+
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
 	bool bCompositeColor;
 

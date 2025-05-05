@@ -46,6 +46,11 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	bOilPaintEnableReliefLighting = true;
 	OilPaintPaintSpecular = 0.75f;
 
+	bUsePencilSketch = false;
+	PencilSketchThreshold = 0.01f;
+	PencilSketchSensitivity = 10.0f;
+	PencilSketchBoldness = 0.9f;
+
 	bCompositeColor = true;
 	bCompositeEdges = true;
 }
