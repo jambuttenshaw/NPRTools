@@ -170,7 +170,7 @@ FRDGTextureRef ConvertToYCC(
 
 FRDGTextureRef BilateralFilter(
 	FRDGBuilder& GraphBuilder,
-	const FNPRToolsParametersProxy& NPRParameters,
+	const FNPRBilateralFilterParametersProxy& BilateralFilterParameters,
 	FRDGTextureRef InTexture,
 	FRDGTextureRef InTangentFlowMapTexture
 )
@@ -179,7 +179,7 @@ FRDGTextureRef BilateralFilter(
 	FRDGTextureRef TempTexture = CreateTextureFrom(GraphBuilder, InTexture, TEXT("NPRTools.Bilateral.Temp"));
 
 	// Perform bilateral filtering
-	for (int32 i = 0; i < NPRParameters.NumBilateralFilterPasses; i++)
+	for (int32 i = 0; i < BilateralFilterParameters.NumPasses; i++)
 	{
 		FBilateralPassPS::FPermutationDomain Permutation;
 		Permutation.Set<FBilateralPassPS::FBilateralDirectionTangent>(true);
@@ -190,8 +190,8 @@ FRDGTextureRef BilateralFilter(
 			TempTexture,
 			[&](auto PassParameters)
 			{
-				PassParameters->SigmaD = NPRParameters.SigmaD1;
-				PassParameters->SigmaR = NPRParameters.SigmaR1;
+				PassParameters->SigmaD = BilateralFilterParameters.SigmaD1;
+				PassParameters->SigmaR = BilateralFilterParameters.SigmaR1;
 
 				PassParameters->InSceneColorYCCTexture = GraphBuilder.CreateSRV(i == 0 ? InTexture : OutTexture);
 				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMapTexture);
@@ -207,8 +207,8 @@ FRDGTextureRef BilateralFilter(
 			OutTexture,
 			[&](auto PassParameters)
 			{
-				PassParameters->SigmaD = NPRParameters.SigmaD2;
-				PassParameters->SigmaR = NPRParameters.SigmaR2;
+				PassParameters->SigmaD = BilateralFilterParameters.SigmaD2;
+				PassParameters->SigmaR = BilateralFilterParameters.SigmaR2;
 
 				PassParameters->InSceneColorYCCTexture = GraphBuilder.CreateSRV(TempTexture);
 				PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMapTexture);
@@ -222,7 +222,7 @@ FRDGTextureRef BilateralFilter(
 
 FRDGTextureRef DifferenceOfGaussians(
 	FRDGBuilder& GraphBuilder,
-	const FNPRToolsParametersProxy& NPRParameters,
+	const FNPRDifferenceOfGaussiansParametersProxy& DoGParameters,
 	FRDGTextureRef InBilateralTexture,
 	FRDGTextureRef InTangentFlowMapTexture
 )
@@ -236,9 +236,9 @@ FRDGTextureRef DifferenceOfGaussians(
 		TempTexture,
 		[&](auto PassParameters)
 		{
-			PassParameters->SigmaE = NPRParameters.SigmaE;				 // Following convention in paper where SigmaE' = SigmaE * K, 
-			PassParameters->SigmaP = NPRParameters.SigmaE * NPRParameters.K; // and allowing users to modify SigmaE and K
-			PassParameters->Tau = NPRParameters.Tau;
+			PassParameters->SigmaE = DoGParameters.SigmaE;				 // Following convention in paper where SigmaE' = SigmaE * K, 
+			PassParameters->SigmaP = DoGParameters.SigmaE * DoGParameters.K; // and allowing users to modify SigmaE and K
+			PassParameters->Tau = DoGParameters.Tau;
 
 			PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(InBilateralTexture);
 			PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMapTexture);
@@ -246,16 +246,16 @@ FRDGTextureRef DifferenceOfGaussians(
 	);
 
 	FDoGFlowPassPS::FPermutationDomain Permutation;
-	Permutation.Set<FDoGFlowPassPS::FThresholdingMethod>(static_cast<int>(NPRParameters.ThresholdingMethod));
+	Permutation.Set<FDoGFlowPassPS::FThresholdingMethod>(static_cast<int>(DoGParameters.ThresholdingMethod));
 	AddNPRPass<FDoGFlowPassPS>(
 		GraphBuilder,
 		RDG_EVENT_NAME("DoG(Flow)"),
 		OutTexture,
 		[&](auto PassParameters)
 		{
-			PassParameters->SigmaM = NPRParameters.SigmaM;
-			PassParameters->Epsilon = NPRParameters.Epsilon;
-			PassParameters->Phi = NPRParameters.PhiEdge;
+			PassParameters->SigmaM = DoGParameters.SigmaM;
+			PassParameters->Epsilon = DoGParameters.Epsilon;
+			PassParameters->Phi = DoGParameters.PhiEdge;
 
 			PassParameters->InDoGGradientTexture = GraphBuilder.CreateSRV(TempTexture);
 			PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMapTexture);
@@ -431,14 +431,14 @@ bool NPRTools::ExecuteNPRPipeline(
 
 	FRDGTextureRef BilateralTexture = BilateralFilter(
 		GraphBuilder,
-		NPRParameters,
+		NPRParameters.BilateralFilterParameters,
 		YCCTexture,
 		TangentFlowMapTexture
 	);
 
 	FRDGTextureRef DoGTexture = DifferenceOfGaussians(
 		GraphBuilder,
-		NPRParameters,
+		NPRParameters.DoGParameters,
 		BilateralTexture,
 		TangentFlowMapTexture
 	);

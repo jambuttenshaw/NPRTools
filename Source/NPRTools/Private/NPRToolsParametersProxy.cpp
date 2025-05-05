@@ -13,24 +13,22 @@ FNPRToolsParametersProxy::FNPRToolsParametersProxy(const UNPRToolsParametersData
 	bCompositeColor = ParamsAsset->bCompositeColor;
 	bCompositeEdges = ParamsAsset->bCompositeEdges;
 
-	NumBilateralFilterPasses = ParamsAsset->NumBilateralFilterPasses;
-	SigmaD1 = ParamsAsset->TangentSigmaD;
-	SigmaR1 = ParamsAsset->TangentSigmaR;
-	SigmaD2 = ParamsAsset->GradientSigmaD;
-	SigmaR2 = ParamsAsset->GradientSigmaR;
+	BilateralFilterParameters.NumPasses = ParamsAsset->BilateralFilterParameters.NumPasses;
+	BilateralFilterParameters.SigmaD1 = ParamsAsset->BilateralFilterParameters.TangentSigmaD;
+	BilateralFilterParameters.SigmaR1 = ParamsAsset->BilateralFilterParameters.TangentSigmaR;
+	BilateralFilterParameters.SigmaD2 = ParamsAsset->BilateralFilterParameters.GradientSigmaD;
+	BilateralFilterParameters.SigmaR2 = ParamsAsset->BilateralFilterParameters.GradientSigmaR;
 
 	bSmoothTangents = ParamsAsset->bSmoothTangents;
 	SmoothingAmount = ParamsAsset->SmoothingAmount;
 
-	SigmaE = ParamsAsset->SigmaE;
-	K = ParamsAsset->K;
-	Tau = ParamsAsset->Tau;
-
-	SigmaM = ParamsAsset->SigmaM;
-
-	ThresholdingMethod = ParamsAsset->ThresholdingMethod;
-	Epsilon = ParamsAsset->Epsilon;
-	PhiEdge = ParamsAsset->PhiEdge;
+	DoGParameters.SigmaE = ParamsAsset->DoGParameters.SigmaE;
+	DoGParameters.K = ParamsAsset->DoGParameters.K;
+	DoGParameters.Tau = ParamsAsset->DoGParameters.Tau;
+	DoGParameters.SigmaM = ParamsAsset->DoGParameters.SigmaM;
+	DoGParameters.ThresholdingMethod = ParamsAsset->DoGParameters.ThresholdingMethod;
+	DoGParameters.Epsilon = ParamsAsset->DoGParameters.Epsilon;
+	DoGParameters.PhiEdge = ParamsAsset->DoGParameters.PhiEdge;
 
 	ColorPipeline = ParamsAsset->ColorPipeline;
 

@@ -3,6 +3,26 @@
 #include "NPRToolsParameters.h"
 
 
+struct FNPRBilateralFilterParametersProxy
+{
+	int32 NumPasses;
+	float SigmaD1;
+	float SigmaR1;
+	float SigmaD2;
+	float SigmaR2;
+};
+
+struct FNPRDifferenceOfGaussiansParametersProxy
+{
+	float SigmaE;
+	float K;
+	float Tau;
+	float SigmaM;
+	ENPRToolsDifferenceOfGaussiansThresholdingMethod ThresholdingMethod;
+	float Epsilon;
+	float PhiEdge;
+};
+
 struct FNPRQuantizationParametersProxy
 {
 	int32 NumBins;
@@ -43,29 +63,13 @@ struct FNPRToolsParametersProxy
 	bool bCompositeColor;
 	bool bCompositeEdges;
 
-	// Bilateral filter parameters
-	int32 NumBilateralFilterPasses;
-	float SigmaD1;
-	float SigmaR1;
-	float SigmaD2;
-	float SigmaR2;
+	FNPRBilateralFilterParametersProxy BilateralFilterParameters;
 
 	// Tangent parameters
 	bool bSmoothTangents;
 	float SmoothingAmount;
 
-	// Difference of Gaussian parameters
-	float SigmaE;
-	float K;
-	float Tau;
-
-	// Flow-based DoG parameters
-	float SigmaM;
-
-	// Thresholding parameters
-	ENPRToolsDifferenceOfGaussiansThresholdingMethod ThresholdingMethod;
-	float Epsilon;
-	float PhiEdge;
+	FNPRDifferenceOfGaussiansParametersProxy DoGParameters;
 
 	ENPRToolsColorPipeline ColorPipeline;
 

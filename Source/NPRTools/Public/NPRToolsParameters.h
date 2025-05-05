@@ -24,6 +24,54 @@ enum class ENPRToolsDifferenceOfGaussiansThresholdingMethod : uint8
 
 
 USTRUCT(BlueprintType)
+struct FNPRBilateralFilterParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	int32 NumPasses;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float TangentSigmaD;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float TangentSigmaR;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float GradientSigmaD;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float GradientSigmaR;
+};
+
+USTRUCT(BlueprintType)
+struct FNPRDifferenceOfGaussiansParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float SigmaE;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float K;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Tau;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float SigmaM;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	ENPRToolsDifferenceOfGaussiansThresholdingMethod ThresholdingMethod;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Epsilon;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float PhiEdge;
+};
+
+USTRUCT(BlueprintType)
 struct FNPRQuantizationParameters
 {
 	GENERATED_BODY()
@@ -116,46 +164,20 @@ public:
 	bool bCompositeEdges;
 
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
-	int32 NumBilateralFilterPasses;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Bilateral Filter",
+		meta = (ShowOnlyInnerProperties))
+	FNPRBilateralFilterParameters BilateralFilterParameters;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
-	float TangentSigmaD;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
-	float TangentSigmaR;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
-	float GradientSigmaD;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
-	float GradientSigmaR;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Tangents")
 	bool bSmoothTangents;
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Tangents", meta = (ClampMin = "0.0", ClampMax = "0.99"))
 	float SmoothingAmount;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Difference of Gaussians")
-	float SigmaE;
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Difference of Gaussians")
-	float K;
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Difference of Gaussians")
-	float Tau;
 
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Flow-Based Difference of Gaussians")
-	float SigmaM;
-
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Difference of Gaussians Thresholding")
-	ENPRToolsDifferenceOfGaussiansThresholdingMethod ThresholdingMethod;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Difference of Gaussians Thresholding")
-	float Epsilon;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Difference of Gaussians Thresholding")
-	float PhiEdge;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Edges",
+		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeEdges"))
+	FNPRDifferenceOfGaussiansParameters DoGParameters;
 
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color")

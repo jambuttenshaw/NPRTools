@@ -9,25 +9,24 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	bCompositeColor = true;
 	bCompositeEdges = true;
 
-	NumBilateralFilterPasses = 1;
-
-	TangentSigmaD = 3.0f;
-	TangentSigmaR = 0.425f;
-	GradientSigmaD = 0.34f;
-	GradientSigmaR = 3.3f;
+	BilateralFilterParameters.NumPasses = 1;
+	BilateralFilterParameters.TangentSigmaD = 3.0f;
+	BilateralFilterParameters.TangentSigmaR = 0.425f;
+	BilateralFilterParameters.GradientSigmaD = 0.34f;
+	BilateralFilterParameters.GradientSigmaR = 3.3f;
 
 	bSmoothTangents = true;
 	SmoothingAmount = 0.9f;
 
-	SigmaE = 1.0f;
-	K = 1.6f;
-	Tau = 20.0f;
+	DoGParameters.SigmaE = 1.0f;
+	DoGParameters.K = 1.6f;
+	DoGParameters.Tau = 20.0f;
 
-	SigmaM = 3.0f;
+	DoGParameters.SigmaM = 3.0f;
 
-	ThresholdingMethod = ENPRToolsDifferenceOfGaussiansThresholdingMethod::HyperbolicTangent;
-	Epsilon = 0.1f;
-	PhiEdge = 3.4f;
+	DoGParameters.ThresholdingMethod = ENPRToolsDifferenceOfGaussiansThresholdingMethod::HyperbolicTangent;
+	DoGParameters.Epsilon = 0.1f;
+	DoGParameters.PhiEdge = 3.4f;
 
 	ColorPipeline = ENPRToolsColorPipeline::Quantization;
 
