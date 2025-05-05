@@ -6,10 +6,93 @@
 
 
 UENUM(BlueprintType)
-enum class ENPRToolsDifferenceOfGaussiansThresholdingMethod: uint8
+enum class ENPRToolsColorPipeline : uint8
+{
+	None = 0,
+	Quantization,
+	Kuwahara,
+	OilPaint,
+	PencilSketch
+};
+
+UENUM(BlueprintType)
+enum class ENPRToolsDifferenceOfGaussiansThresholdingMethod : uint8
 {
 	Binary = 0,
 	HyperbolicTangent = 1
+};
+
+
+USTRUCT(BlueprintType)
+struct FNPRQuantizationParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	int32 NumBins;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float PhiColor;
+};
+
+USTRUCT(BlueprintType)
+struct FNPRKuwaharaParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	int32 KernelSize;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Hardness;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Sharpness;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Alpha;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float ZeroCrossing;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Zeta;
+};
+
+USTRUCT(BlueprintType)
+struct FNPROilPaintParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float BrushDetail;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float StrokeBend;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float BrushSize;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	bool bEnableReliefLighting;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float PaintSpecular;
+};
+
+USTRUCT(BlueprintType)
+struct FNPRPencilSketchParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Threshold;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Sensitivity;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Boldness;
 };
 
 
@@ -25,6 +108,12 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Global")
 	bool bEnable;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Global")
+	bool bCompositeColor;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Global")
+	bool bCompositeEdges;
 
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Bilateral Filter")
@@ -69,73 +158,22 @@ public:
 	float PhiEdge;
 
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Quantization")
-	bool bEnableQuantization;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color")
+	ENPRToolsColorPipeline ColorPipeline;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Color Quantization")
-	int32 NumBins;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Quantization",
+		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::Quantization"))
+	FNPRQuantizationParameters QuantizationParameters;
+	
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara",
+		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::Kuwahara"))
+	FNPRKuwaharaParameters KuwaharaParameters;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Color Quantization")
-	float PhiColor;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint", 
+		meta=(ShowOnlyInnerProperties, EditCondition="bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::OilPaint"))
+	FNPROilPaintParameters OilPaintParameters;
 
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
-	bool bUseKuwahara;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
-	int32 KuwaharaKernelSize;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
-	float KuwaharaHardness;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
-	float KuwaharaSharpness;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
-	float KuwaharaAlpha;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
-	float KuwaharaZeroCrossing;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Kuwahara")
-	float KuwaharaZeta;
-
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
-	bool bUseOilPaint;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
-	float OilPaintBrushDetail;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
-	float OilPaintStrokeBend;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
-	float OilPaintBrushSize;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
-	bool bOilPaintEnableReliefLighting;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Oil Paint")
-	float OilPaintPaintSpecular;
-
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Pencil Sketch")
-	bool bUsePencilSketch;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Pencil Sketch")
-	float PencilSketchThreshold;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Pencil Sketch")
-	float PencilSketchSensitivity;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Pencil Sketch")
-	float PencilSketchBoldness;
-
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
-	bool bCompositeColor;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Composition")
-	bool bCompositeEdges;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PencilSketch",
+		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::PencilSketch"))
+	FNPRPencilSketchParameters PencilSketchParameters;
 };

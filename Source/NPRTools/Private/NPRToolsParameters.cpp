@@ -6,6 +6,8 @@
 UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 {
 	bEnable = true;
+	bCompositeColor = true;
+	bCompositeEdges = true;
 
 	NumBilateralFilterPasses = 1;
 
@@ -27,30 +29,25 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	Epsilon = 0.1f;
 	PhiEdge = 3.4f;
 
-	bEnableQuantization = true;
-	NumBins = 16;
-	PhiColor = 3.4f;
+	ColorPipeline = ENPRToolsColorPipeline::Quantization;
 
-	bUseKuwahara = false;
-	KuwaharaKernelSize = 4;
-	KuwaharaHardness = 8.0f;
-	KuwaharaSharpness = 8.0f;
-	KuwaharaAlpha = 1.0f;
-	KuwaharaZeroCrossing = 0.58f;
-	KuwaharaZeta = 0.1f;
+	QuantizationParameters.NumBins = 16;
+	QuantizationParameters.PhiColor = 3.4f;
 
-	bUseOilPaint = false;
-	OilPaintBrushDetail = 1.0f;
-	OilPaintStrokeBend = -1.0f;
-	OilPaintBrushSize = 1.0f;
-	bOilPaintEnableReliefLighting = true;
-	OilPaintPaintSpecular = 0.75f;
+	KuwaharaParameters.KernelSize = 4;
+	KuwaharaParameters.Hardness = 8.0f;
+	KuwaharaParameters.Sharpness = 8.0f;
+	KuwaharaParameters.Alpha = 1.0f;
+	KuwaharaParameters.ZeroCrossing = 0.58f;
+	KuwaharaParameters.Zeta = 0.1f;
 
-	bUsePencilSketch = false;
-	PencilSketchThreshold = 0.01f;
-	PencilSketchSensitivity = 10.0f;
-	PencilSketchBoldness = 0.9f;
+	OilPaintParameters.BrushDetail = 1.0f;
+	OilPaintParameters.StrokeBend = -1.0f;
+	OilPaintParameters.BrushSize = 1.0f;
+	OilPaintParameters.bEnableReliefLighting = true;
+	OilPaintParameters.PaintSpecular = 0.75f;
 
-	bCompositeColor = true;
-	bCompositeEdges = true;
+	PencilSketchParameters.Threshold = 0.01f;
+	PencilSketchParameters.Sensitivity = 10.0f;
+	PencilSketchParameters.Boldness = 0.9f;
 }

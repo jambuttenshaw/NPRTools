@@ -266,9 +266,33 @@ FRDGTextureRef DifferenceOfGaussians(
 	return OutTexture;
 }
 
+FRDGTextureRef QuantizeFilter(
+	FRDGBuilder& GraphBuilder,
+	const FNPRQuantizationParametersProxy& QuantizationParameters,
+	FRDGTextureRef InYCCTexture
+)
+{
+	FRDGTextureRef OutTexture = CreateTextureFrom(GraphBuilder, InYCCTexture, TEXT("NPRTools.Quantize"));
+
+	AddNPRPass<FQuantizePassPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("Quantization"),
+		OutTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->NumBins = QuantizationParameters.NumBins;
+			PassParameters->Phi = QuantizationParameters.PhiColor;
+
+			PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(InYCCTexture);
+		}
+	);
+
+	return OutTexture;
+}
+
 FRDGTextureRef KuwaharaFilter(
 	FRDGBuilder& GraphBuilder,
-	const FNPRToolsParametersProxy& NPRParameters,
+	const FNPRKuwaharaParametersProxy& KuwaharaParameters,
 	FRDGTextureRef InColorTexture,
 	FRDGTextureRef InTangentFlowMapTexture
 )
@@ -281,12 +305,12 @@ FRDGTextureRef KuwaharaFilter(
 		OutTexture,
 		[&](auto PassParameters)
 		{
-			PassParameters->KernelSize = NPRParameters.KuwaharaKernelSize;
-			PassParameters->Hardness = NPRParameters.KuwaharaHardness;
-			PassParameters->Sharpness = NPRParameters.KuwaharaSharpness;
-			PassParameters->Alpha = NPRParameters.KuwaharaAlpha;
-			PassParameters->ZeroCrossing = NPRParameters.KuwaharaZeroCrossing;
-			PassParameters->Zeta = NPRParameters.KuwaharaZeta;
+			PassParameters->KernelSize = KuwaharaParameters.KernelSize;
+			PassParameters->Hardness = KuwaharaParameters.Hardness;
+			PassParameters->Sharpness = KuwaharaParameters.Sharpness;
+			PassParameters->Alpha = KuwaharaParameters.Alpha;
+			PassParameters->ZeroCrossing = KuwaharaParameters.ZeroCrossing;
+			PassParameters->Zeta = KuwaharaParameters.Zeta;
 
 			PassParameters->SceneColorTexture = GraphBuilder.CreateSRV(InColorTexture);
 			PassParameters->TangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMapTexture);
@@ -296,33 +320,9 @@ FRDGTextureRef KuwaharaFilter(
 	return OutTexture;
 }
 
-FRDGTextureRef QuantizeFilter(
-	FRDGBuilder& GraphBuilder,
-	const FNPRToolsParametersProxy& NPRParameters,
-	FRDGTextureRef InYCCTexture
-)
-{
-	FRDGTextureRef OutTexture = CreateTextureFrom(GraphBuilder, InYCCTexture, TEXT("NPRTools.Quantize"));
-
-	AddNPRPass<FQuantizePassPS>(
-		GraphBuilder,
-		RDG_EVENT_NAME("Quantization"),
-		OutTexture,
-		[&](auto PassParameters)
-		{
-			PassParameters->NumBins = NPRParameters.NumBins;
-			PassParameters->Phi = NPRParameters.PhiColor;
-
-			PassParameters->InBilateralTexture = GraphBuilder.CreateSRV(InYCCTexture);
-		}
-	);
-
-	return OutTexture;
-}
-
 FRDGTextureRef OilPaintFilter(
 	FRDGBuilder& GraphBuilder,
-	const FNPRToolsParametersProxy& NPRParameters,
+	const FNPROilPaintParametersProxy& OilPaintParameters,
 	FRDGTextureRef InColorTexture
 )
 {
@@ -335,15 +335,15 @@ FRDGTextureRef OilPaintFilter(
 		TempTexture,
 		[&](auto PassParameters)
 		{
-			PassParameters->BrushDetail = NPRParameters.OilPaintBrushDetail;
-			PassParameters->StrokeBend = NPRParameters.OilPaintStrokeBend;
-			PassParameters->BrushSize = NPRParameters.OilPaintBrushSize;
+			PassParameters->BrushDetail = OilPaintParameters.BrushDetail;
+			PassParameters->StrokeBend = OilPaintParameters.StrokeBend;
+			PassParameters->BrushSize = OilPaintParameters.BrushSize;
 
 			PassParameters->InColorTexture = GraphBuilder.CreateSRV(InColorTexture);
 		}
 	);
 
-	if (!NPRParameters.bOilPaintEnableReliefLighting)
+	if (!OilPaintParameters.bEnableReliefLighting)
 	{
 		return TempTexture;
 	}
@@ -354,7 +354,7 @@ FRDGTextureRef OilPaintFilter(
 		OutTexture,
 		[&](auto PassParameters)
 		{
-			PassParameters->PaintSpec = NPRParameters.OilPaintPaintSpecular;
+			PassParameters->PaintSpec = OilPaintParameters.PaintSpecular;
 
 			PassParameters->InColorTexture = GraphBuilder.CreateSRV(TempTexture);
 		}
@@ -365,7 +365,7 @@ FRDGTextureRef OilPaintFilter(
 
 FRDGTextureRef PencilSketchFilter(
 	FRDGBuilder& GraphBuilder,
-	const FNPRToolsParametersProxy& NPRParameters,
+	const FNPRPencilSketchParametersProxy& PencilSketchParameters,
 	FRDGTextureRef InColorTexture
 )
 {
@@ -376,9 +376,9 @@ FRDGTextureRef PencilSketchFilter(
 		OutTexture,
 		[&](auto PassParameters)
 		{
-			PassParameters->Threshold = NPRParameters.PencilSketchThreshold;
-			PassParameters->Sensitivity = NPRParameters.PencilSketchSensitivity;
-			PassParameters->Boldness = NPRParameters.PencilSketchBoldness;
+			PassParameters->Threshold = PencilSketchParameters.Threshold;
+			PassParameters->Sensitivity = PencilSketchParameters.Sensitivity;
+			PassParameters->Boldness = PencilSketchParameters.Boldness;
 
 			PassParameters->InColorTexture = GraphBuilder.CreateSRV(InColorTexture);
 		}
@@ -447,41 +447,44 @@ bool NPRTools::ExecuteNPRPipeline(
 	FRDGTextureRef ProcessedColorTexture = InColorTexture;
 	if (NPRParameters.bCompositeColor)
 	{
-		if (NPRParameters.bUseKuwahara)
+		switch (NPRParameters.ColorPipeline)
 		{
+		case ENPRToolsColorPipeline::Quantization:
+			ProcessedColorTexture = QuantizeFilter(
+				GraphBuilder,
+				NPRParameters.QuantizationParameters,
+				BilateralTexture
+			);
+			break;
+		case ENPRToolsColorPipeline::Kuwahara:
 			ProcessedColorTexture = KuwaharaFilter(
 				GraphBuilder,
-				NPRParameters,
+				NPRParameters.KuwaharaParameters,
 				InColorTexture,
 				TangentFlowMapTexture
 			);
-		}
-		else if (NPRParameters.bUseOilPaint)
-		{
+			break;
+		case ENPRToolsColorPipeline::OilPaint:
 			ProcessedColorTexture = OilPaintFilter(
 				GraphBuilder,
-				NPRParameters,
+				NPRParameters.OilPaintParameters,
 				InColorTexture
 			);
-		}
-		else if (NPRParameters.bUsePencilSketch)
-		{
+			break;
+		case ENPRToolsColorPipeline::PencilSketch:
 			ProcessedColorTexture = PencilSketchFilter(
 				GraphBuilder,
-				NPRParameters,
+				NPRParameters.PencilSketchParameters,
 				InColorTexture
 			);
-		}
-		else if (NPRParameters.bEnableQuantization)
-		{
-			ProcessedColorTexture = QuantizeFilter(
-				GraphBuilder,
-				NPRParameters,
-				BilateralTexture
-			);
+			break;
+		default:
+			// No color processing will retain original scene colour
+			break;
 		}
 	}
 
+	// Image composition
 	if (NPRParameters.bCompositeColor && NPRParameters.bCompositeEdges)
 	{
 		// Combine edges and quantized color

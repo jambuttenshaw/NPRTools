@@ -3,11 +3,45 @@
 #include "NPRToolsParameters.h"
 
 
+struct FNPRQuantizationParametersProxy
+{
+	int32 NumBins;
+	float PhiColor;
+};
+
+struct FNPRKuwaharaParametersProxy
+{
+	int32 KernelSize;
+	float Hardness;
+	float Sharpness;
+	float Alpha;
+	float ZeroCrossing;
+	float Zeta;
+};
+
+struct FNPROilPaintParametersProxy
+{
+	float BrushDetail;
+	float StrokeBend;
+	float BrushSize;
+	bool bEnableReliefLighting;
+	float PaintSpecular;
+};
+
+struct FNPRPencilSketchParametersProxy
+{
+	float Threshold;
+	float Sensitivity;
+	float Boldness;
+};
+
 // Render thread representation of parameters controlling NPR FX
 struct FNPRToolsParametersProxy
 {
 	// Global parameters
 	bool bEnable;
+	bool bCompositeColor;
+	bool bCompositeEdges;
 
 	// Bilateral filter parameters
 	int32 NumBilateralFilterPasses;
@@ -33,34 +67,17 @@ struct FNPRToolsParametersProxy
 	float Epsilon;
 	float PhiEdge;
 
-	// Quantization parameters
-	bool bEnableQuantization;
-	int32 NumBins;
-	float PhiColor;
+	ENPRToolsColorPipeline ColorPipeline;
 
-	bool bUseKuwahara;
-	int32 KuwaharaKernelSize;
-	float KuwaharaHardness;
-	float KuwaharaSharpness;
-	float KuwaharaAlpha;
-	float KuwaharaZeroCrossing;
-	float KuwaharaZeta;
+	// Only one pipeline is in effect at a time
+	union
+	{
+		FNPRQuantizationParametersProxy QuantizationParameters;
+		FNPRKuwaharaParametersProxy KuwaharaParameters;
+		FNPROilPaintParametersProxy OilPaintParameters;
+		FNPRPencilSketchParametersProxy PencilSketchParameters;
+	};
 
-	bool bUseOilPaint;
-	float OilPaintBrushDetail;
-	float OilPaintStrokeBend;
-	float OilPaintBrushSize;
-	bool bOilPaintEnableReliefLighting;
-	float OilPaintPaintSpecular;
-
-	bool bUsePencilSketch;
-	float PencilSketchThreshold;
-	float PencilSketchSensitivity;
-	float PencilSketchBoldness;
-
-	// Composition parameters
-	bool bCompositeColor;
-	bool bCompositeEdges;
 
 	explicit FNPRToolsParametersProxy(const UNPRToolsParametersDataAsset* ParamsAsset);
 };
