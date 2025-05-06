@@ -27,4 +27,6 @@ IMPLEMENT_GLOBAL_SHADER(FOilPaintReliefLightingPS, "/NPRTools/OilPaint.usf", "Oi
 
 IMPLEMENT_GLOBAL_SHADER(FPencilSketchPS, "/NPRTools/PencilSketch.usf", "PencilSketchPS", SF_Pixel);
 
-IMPLEMENT_GLOBAL_SHADER(FDownsamplePS, "/NPRTools/Downsample.usf", "DownsamplePS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FDownsamplePS, "/NPRTools/PixelArt.usf", "DownsamplePS", SF_Pixel);
+
+IMPLEMENT_GLOBAL_SHADER(FDitherPS, "/NPRTools/PixelArt.usf", "DitherPS", SF_Pixel);

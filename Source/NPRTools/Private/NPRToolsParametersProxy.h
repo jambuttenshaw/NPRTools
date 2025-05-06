@@ -55,9 +55,12 @@ struct FNPRPencilSketchParametersProxy
 	float Boldness;
 };
 
-struct FNPRDownsampleParametersProxy
+struct FNPRPixelArtParametersProxy
 {
-	int32 NumPasses;
+	int32 NumDownsamplePasses;
+	float DitherSpread;
+	FIntVector ColorCount;
+	int BayerLevel;
 };
 
 
@@ -86,7 +89,7 @@ struct FNPRToolsParametersProxy
 		FNPRKuwaharaParametersProxy KuwaharaParameters;
 		FNPROilPaintParametersProxy OilPaintParameters;
 		FNPRPencilSketchParametersProxy PencilSketchParameters;
-		FNPRDownsampleParametersProxy DownsampleParameters;
+		FNPRPixelArtParametersProxy PixelArtParameters;
 	};
 
 

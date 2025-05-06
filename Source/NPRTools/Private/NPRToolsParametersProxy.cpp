@@ -58,8 +58,11 @@ FNPRToolsParametersProxy::FNPRToolsParametersProxy(const UNPRToolsParametersData
 		PencilSketchParameters.Sensitivity = ParamsAsset->PencilSketchParameters.Sensitivity;
 		PencilSketchParameters.Boldness = ParamsAsset->PencilSketchParameters.Boldness;
 		break;
-	case ENPRToolsColorPipeline::Downsample:
-		DownsampleParameters.NumPasses = ParamsAsset->DownsampleParameters.NumPasses;
+	case ENPRToolsColorPipeline::PixelArt:
+		PixelArtParameters.NumDownsamplePasses = ParamsAsset->PixelArtParameters.NumDownsamplePasses;
+		PixelArtParameters.DitherSpread = ParamsAsset->PixelArtParameters.DitherSpread;
+		PixelArtParameters.ColorCount = ParamsAsset->PixelArtParameters.ColorCount;
+		PixelArtParameters.BayerLevel = ParamsAsset->PixelArtParameters.BayerLevel;
 		break;
 	default:
 		break;

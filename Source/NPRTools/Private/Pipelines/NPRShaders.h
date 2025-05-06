@@ -296,3 +296,24 @@ class FDownsamplePS : public FGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
+
+
+class FDitherPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FDitherPS);
+	SHADER_USE_PARAMETER_STRUCT(FDitherPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
+		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
+
+		SHADER_PARAMETER(float, Spread)
+		SHADER_PARAMETER(FIntVector3, ColorCount)
+		SHADER_PARAMETER(int, BayerLevel)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InColorTexture)
+
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};

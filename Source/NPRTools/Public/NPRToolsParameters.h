@@ -13,7 +13,7 @@ enum class ENPRToolsColorPipeline : uint8
 	Kuwahara,
 	OilPaint,
 	PencilSketch,
-	Downsample
+	PixelArt
 };
 
 UENUM(BlueprintType)
@@ -145,12 +145,21 @@ struct FNPRPencilSketchParameters
 };
 
 USTRUCT(BlueprintType)
-struct FNPRDownsampleParameters
+struct FNPRPixelArtParameters
 {
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	int32 NumPasses;
+	int32 NumDownsamplePasses;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float DitherSpread;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	FIntVector ColorCount;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, meta=(ClampMin="0",ClampMax="2"))
+	int BayerLevel;
 };
 
 
@@ -209,7 +218,7 @@ public:
 		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::PencilSketch"))
 	FNPRPencilSketchParameters PencilSketchParameters;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Downsample",
-		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::Downsample"))
-	FNPRDownsampleParameters DownsampleParameters;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PixelArt",
+		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::PixelArt"))
+	FNPRPixelArtParameters PixelArtParameters;
 };

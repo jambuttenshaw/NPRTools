@@ -50,5 +50,8 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	PencilSketchParameters.Sensitivity = 10.0f;
 	PencilSketchParameters.Boldness = 0.9f;
 
-	DownsampleParameters.NumPasses = 1;
+	PixelArtParameters.NumDownsamplePasses = 1;
+	PixelArtParameters.DitherSpread = 0.01f;
+	PixelArtParameters.ColorCount = FIntVector(64);
+	PixelArtParameters.BayerLevel = 1;
 }

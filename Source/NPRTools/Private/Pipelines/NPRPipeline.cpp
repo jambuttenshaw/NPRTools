@@ -404,11 +404,13 @@ FRDGTextureRef PencilSketchFilter(
 
 FRDGTextureRef DownsampleFilter(
 	FRDGBuilder& GraphBuilder,
-	const FNPRDownsampleParametersProxy& DownsampleParameters,
+	const FNPRPixelArtParametersProxy& PixelArtParameters,
 	FRDGTextureRef InColorTexture
 )
 {
-	if (DownsampleParameters.NumPasses == 0)
+	// TODO: Still perform dithering
+	const int32 NumPasses = PixelArtParameters.NumDownsamplePasses;
+	if (NumPasses == 0)
 	{
 		return InColorTexture;
 	}
@@ -418,7 +420,6 @@ FRDGTextureRef DownsampleFilter(
 	FIntRect InRect{ FIntPoint::ZeroValue, Extent };
 	FIntRect OutRect{ FIntPoint::ZeroValue, Extent / 2 };
 
-	const int32 NumPasses = DownsampleParameters.NumPasses;
 
 	uint32 WriteTextureIndex = 0;
 	FRDGTextureRef PingPongTextures[2] = {
@@ -453,6 +454,26 @@ FRDGTextureRef DownsampleFilter(
 		WriteTextureIndex = (WriteTextureIndex + 1) % 2;
 	}
 
+	// Run dithering on the downsampled image
+	AddNPRPass<FDitherPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("Dither"),
+		PingPongTextures[WriteTextureIndex],
+		[&](auto PassParameters)
+		{
+			PassParameters->Spread = PixelArtParameters.DitherSpread;
+			PassParameters->ColorCount = PixelArtParameters.ColorCount;
+			PassParameters->BayerLevel = PixelArtParameters.BayerLevel;
+
+			PassParameters->InColorTexture = GraphBuilder.CreateSRV(PingPongTextures[1 - WriteTextureIndex]);
+		},
+		TShaderPermutationDomain(),
+		OutRect,
+		OutRect
+	);
+
+	WriteTextureIndex = (WriteTextureIndex + 1) % 2;
+
 	// Upsample back to full res
 	for (int32 i = 0; i < NumPasses; i++)
 	{
@@ -462,8 +483,7 @@ FRDGTextureRef DownsampleFilter(
 			PingPongTextures[WriteTextureIndex],
 			[&](auto PassParameters)
 			{
-				PassParameters->InColorTexture = GraphBuilder.CreateSRV(PingPongTextures[1 - WriteTextureIndex]
-				);
+				PassParameters->InColorTexture = GraphBuilder.CreateSRV(PingPongTextures[1 - WriteTextureIndex]);
 			},
 			TShaderPermutationDomain(),
 			InRect, // These are deliberately swapped for upscaling passes
@@ -570,10 +590,10 @@ bool NPRTools::ExecuteNPRPipeline(
 				InColorTexture
 			);
 			break;
-		case ENPRToolsColorPipeline::Downsample:
+		case ENPRToolsColorPipeline::PixelArt:
 			ProcessedColorTexture = DownsampleFilter(
 				GraphBuilder,
-				NPRParameters.DownsampleParameters,
+				NPRParameters.PixelArtParameters,
 				InColorTexture
 			);
 		default:
