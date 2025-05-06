@@ -3,7 +3,8 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/ScreenPass.ush"
 
-SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
 
 #define RANGE 16.
 #define STEP 2.
@@ -19,7 +20,7 @@ SamplerState sampler0;
 
 float4 getCol(float2 pos)
 {
-	float2 uv = pos * ViewPort_ExtentInverse;
+	float2 uv = pos * InViewPort_ExtentInverse;
 	return InColorTexture.Sample(sampler0, uv);
 }
 
@@ -55,7 +56,7 @@ float4 PencilSketchPS(
 	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
-	float2 pos = InUV * ViewPort_Extent;
+	float2 pos = InUV * InViewPort_Extent;
 	float weight = 1.0;
     
 	for (float j = 0.; j < ANGLENUM; j += 1.)
@@ -70,7 +71,7 @@ float4 PencilSketchPS(
 			float2 pos2 = pos + normalize(dir) * i;
             
             // video texture wrap can't be set to anything other than clamp  (-_-)
-			if (pos2.y < 0. || pos2.x < 0. || pos2.x > ViewPort_Extent.x || pos2.y > ViewPort_Extent.y)
+			if (pos2.y < 0. || pos2.x < 0. || pos2.x > InViewPort_Extent.x || pos2.y > InViewPort_Extent.y)
 				continue;
             
 			float2 g = getGrad(pos2, 1.);

@@ -2,7 +2,8 @@
 #include "/Engine/Private/ScreenPass.ush"
 
 
-SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
 
 Texture2D<float4> InColorTexture; // In RGB
 Texture2D<float4> InEdgesTexture;

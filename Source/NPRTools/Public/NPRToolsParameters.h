@@ -12,7 +12,8 @@ enum class ENPRToolsColorPipeline : uint8
 	Quantization,
 	Kuwahara,
 	OilPaint,
-	PencilSketch
+	PencilSketch,
+	Downsample
 };
 
 UENUM(BlueprintType)
@@ -143,6 +144,15 @@ struct FNPRPencilSketchParameters
 	float Boldness;
 };
 
+USTRUCT(BlueprintType)
+struct FNPRDownsampleParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	int32 NumPasses;
+};
+
 
 /**
  *
@@ -198,4 +208,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PencilSketch",
 		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::PencilSketch"))
 	FNPRPencilSketchParameters PencilSketchParameters;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Downsample",
+		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::Downsample"))
+	FNPRDownsampleParameters DownsampleParameters;
 };

@@ -2,7 +2,8 @@
 #include "/Engine/Private/ScreenPass.ush"
 
 
-SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
 
 // Controls kernel diameter
 int KernelSize = 8;
@@ -81,7 +82,7 @@ float4 KuwaharaPS(
 			// Calculates weight if within shifted radius
 			if (dot(vec, vec) <= 0.25)
 			{
-				float3 c = SceneColorTexture.Sample(sampler0, InUV + float2(float(x), float(y)) * ViewPort_ExtentInverse).rgb;
+				float3 c = SceneColorTexture.Sample(sampler0, InUV + float2(float(x), float(y)) * InViewPort_ExtentInverse).rgb;
 				c = clamp(c, 0.0, 1.0);
 				float sum = 0.0;
 				float w[8];

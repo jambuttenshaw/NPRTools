@@ -58,13 +58,21 @@ void AddNPRPass(
 	FRDGEventName&& PassName,
 	FRDGTextureRef RenderTarget,
 	std::function<void(typename Shader::FParameters*)>&& SetPassParametersLambda,
-	typename Shader::FPermutationDomain Permutation = TShaderPermutationDomain()
+	typename Shader::FPermutationDomain Permutation = TShaderPermutationDomain(),
+	FIntRect OutRect = FIntRect(),
+	FIntRect InRect = FIntRect()
 )
 {
-	FScreenPassTextureViewport ViewPort{ RenderTarget->Desc.Extent };
+	FScreenPassTextureViewport OutViewPort = OutRect.IsEmpty() ?
+												FScreenPassTextureViewport{ RenderTarget->Desc.Extent } :
+												FScreenPassTextureViewport{ RenderTarget->Desc.Extent, OutRect };
+	FScreenPassTextureViewport InViewPort = InRect.IsEmpty() ?
+												FScreenPassTextureViewport{ RenderTarget->Desc.Extent } :
+												FScreenPassTextureViewport{ RenderTarget->Desc.Extent, InRect };
 
 	typename Shader::FParameters* PassParameters = GraphBuilder.AllocParameters<typename Shader::FParameters>();
-	PassParameters->ViewPort = GetScreenPassTextureViewportParameters(ViewPort);
+	PassParameters->OutViewPort = GetScreenPassTextureViewportParameters(OutViewPort);
+	PassParameters->InViewPort = GetScreenPassTextureViewportParameters(InViewPort);
 	PassParameters->sampler0 = TStaticSamplerState<>::GetRHI(); // Point clamped sampler
 
 	SetPassParametersLambda(PassParameters);
@@ -77,20 +85,22 @@ void AddNPRPass(
 		GraphBuilder,
 		std::move(PassName),
 		FScreenPassViewInfo{GMaxRHIFeatureLevel},
-		ViewPort,
-		ViewPort,
+		OutViewPort,
+		InViewPort,
 		PixelShader,
 		PassParameters
 	);
 }
 
 
-// Ensures common texture descriptions between all textures in the pipeline
-FRDGTextureRef CreateTextureFrom(FRDGBuilder& GraphBuilder, FRDGTextureRef InTex, const TCHAR* Name)
+// Ensures compatible texture descriptions for all textures in the pipeline
+FRDGTextureRef CreateTextureFrom(FRDGBuilder& GraphBuilder, FRDGTextureRef InTex, const TCHAR* Name, float ScaleFactor = 1.0f)
 {
 	FRDGTextureDesc Desc = InTex->Desc;
 	Desc.ClearValue = FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f));
 	Desc.Format = PF_FloatRGBA;
+	Desc.Extent.X = static_cast<int>(static_cast<float>(Desc.Extent.X) * ScaleFactor);
+	Desc.Extent.Y = static_cast<int>(static_cast<float>(Desc.Extent.Y) * ScaleFactor);
 	return GraphBuilder.CreateTexture(Desc, Name);
 }
 
@@ -175,6 +185,11 @@ FRDGTextureRef BilateralFilter(
 	FRDGTextureRef InTangentFlowMapTexture
 )
 {
+	if (BilateralFilterParameters.NumPasses == 0)
+	{
+		return InTexture;
+	}
+
 	FRDGTextureRef OutTexture = CreateTextureFrom(GraphBuilder, InTexture, TEXT("NPRTools.Bilateral"));
 	FRDGTextureRef TempTexture = CreateTextureFrom(GraphBuilder, InTexture, TEXT("NPRTools.Bilateral.Temp"));
 
@@ -387,6 +402,83 @@ FRDGTextureRef PencilSketchFilter(
 	return OutTexture;
 }
 
+FRDGTextureRef DownsampleFilter(
+	FRDGBuilder& GraphBuilder,
+	const FNPRDownsampleParametersProxy& DownsampleParameters,
+	FRDGTextureRef InColorTexture
+)
+{
+	if (DownsampleParameters.NumPasses == 0)
+	{
+		return InColorTexture;
+	}
+
+	FIntPoint Extent = InColorTexture->Desc.Extent;
+
+	FIntRect InRect{ FIntPoint::ZeroValue, Extent };
+	FIntRect OutRect{ FIntPoint::ZeroValue, Extent / 2 };
+
+	const int32 NumPasses = DownsampleParameters.NumPasses;
+
+	uint32 WriteTextureIndex = 0;
+	FRDGTextureRef PingPongTextures[2] = {
+		CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.Downsample.Ping")),
+		CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.Downsample.Pong"))
+	};
+
+	// Downsample
+	for (int32 i = 0; i < NumPasses; i++)
+	{
+		AddNPRPass<FDownsamplePS>(
+			GraphBuilder,
+			RDG_EVENT_NAME("Downsample"),
+			PingPongTextures[WriteTextureIndex],
+			[&](auto PassParameters)
+			{
+				PassParameters->InColorTexture = GraphBuilder.CreateSRV(
+					(i == 0) ? InColorTexture : PingPongTextures[1 - WriteTextureIndex]
+				);
+			},
+			TShaderPermutationDomain(),
+			OutRect,
+			InRect
+		);
+
+		if (i < NumPasses - 1)
+		{
+			InRect = OutRect;
+			OutRect.Max /= 2;
+		}
+
+		WriteTextureIndex = (WriteTextureIndex + 1) % 2;
+	}
+
+	// Upsample back to full res
+	for (int32 i = 0; i < NumPasses; i++)
+	{
+		AddNPRPass<FDownsamplePS>(
+			GraphBuilder,
+			RDG_EVENT_NAME("Upsample"),
+			PingPongTextures[WriteTextureIndex],
+			[&](auto PassParameters)
+			{
+				PassParameters->InColorTexture = GraphBuilder.CreateSRV(PingPongTextures[1 - WriteTextureIndex]
+				);
+			},
+			TShaderPermutationDomain(),
+			InRect, // These are deliberately swapped for upscaling passes
+			OutRect	
+		);
+
+		OutRect = InRect;
+		InRect.Max *= 2;
+
+		WriteTextureIndex = (WriteTextureIndex + 1) % 2;
+	}
+
+	return PingPongTextures[1 - WriteTextureIndex];
+}
+
 
 bool NPRTools::ExecuteNPRPipeline(
 	FRDGBuilder& GraphBuilder,
@@ -478,6 +570,12 @@ bool NPRTools::ExecuteNPRPipeline(
 				InColorTexture
 			);
 			break;
+		case ENPRToolsColorPipeline::Downsample:
+			ProcessedColorTexture = DownsampleFilter(
+				GraphBuilder,
+				NPRParameters.DownsampleParameters,
+				InColorTexture
+			);
 		default:
 			// No color processing will retain original scene colour
 			break;

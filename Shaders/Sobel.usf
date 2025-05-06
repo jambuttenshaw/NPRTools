@@ -2,7 +2,8 @@
 #include "/Engine/Private/ScreenPass.ush"
 
 
-SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
 
 Texture2D<float4> SceneColorTexture;
 
@@ -12,8 +13,8 @@ float4 SobelPS(
 	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
-	const float rcpW = ViewPort_ExtentInverse.x;
-	const float rcpH = ViewPort_ExtentInverse.y;
+	const float rcpW = InViewPort_ExtentInverse.x;
+	const float rcpH = InViewPort_ExtentInverse.y;
 
 	float4 u = float4(-1.0 * SceneColorTexture.Sample(sampler0, InUV + float2(-rcpW, -rcpH)) +
                       -2.0 * SceneColorTexture.Sample(sampler0, InUV + float2(-rcpW, 0.0)) +

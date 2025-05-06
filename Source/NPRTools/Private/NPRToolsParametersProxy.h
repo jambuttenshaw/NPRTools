@@ -55,6 +55,12 @@ struct FNPRPencilSketchParametersProxy
 	float Boldness;
 };
 
+struct FNPRDownsampleParametersProxy
+{
+	int32 NumPasses;
+};
+
+
 // Render thread representation of parameters controlling NPR FX
 struct FNPRToolsParametersProxy
 {
@@ -80,6 +86,7 @@ struct FNPRToolsParametersProxy
 		FNPRKuwaharaParametersProxy KuwaharaParameters;
 		FNPROilPaintParametersProxy OilPaintParameters;
 		FNPRPencilSketchParametersProxy PencilSketchParameters;
+		FNPRDownsampleParametersProxy DownsampleParameters;
 	};
 
 

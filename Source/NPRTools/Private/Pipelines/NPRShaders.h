@@ -10,7 +10,8 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FSobelPassPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, SceneColorTexture)
@@ -27,7 +28,8 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FBlurEigenVerticalPassPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InTexture)
@@ -47,7 +49,8 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<FSmoothTangents>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InTexture)
@@ -67,7 +70,8 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FConvertYCCPassPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, SceneColorTexture)
@@ -87,7 +91,8 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<FBilateralDirectionTangent>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER(float, SigmaD)
@@ -108,7 +113,8 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FDoGGradientPassPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER(float, SigmaE)
@@ -133,7 +139,8 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain<FThresholdingMethod>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER(float, SigmaM)
@@ -155,7 +162,8 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FQuantizePassPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER(int, NumBins)
@@ -175,7 +183,8 @@ public:
 	SHADER_USE_PARAMETER_STRUCT(FKuwaharaPassPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER(int32, KernelSize)
@@ -199,7 +208,8 @@ class FCombineEdgesPassPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FCombineEdgesPassPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InColorTexture)
@@ -216,7 +226,8 @@ class FOilPaintStrokesPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FOilPaintStrokesPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER(float, BrushDetail)
@@ -236,7 +247,8 @@ class FOilPaintReliefLightingPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FOilPaintReliefLightingPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER(float, PaintSpec)
@@ -254,12 +266,30 @@ class FPencilSketchPS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FPencilSketchPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, ViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
 		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER(float, Threshold)
 		SHADER_PARAMETER(float, Sensitivity)
 		SHADER_PARAMETER(float, Boldness)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InColorTexture)
+
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+
+class FDownsamplePS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FDownsamplePS);
+	SHADER_USE_PARAMETER_STRUCT(FDownsamplePS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
+		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
 
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InColorTexture)
 

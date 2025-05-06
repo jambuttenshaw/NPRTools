@@ -7,7 +7,8 @@
 #endif
 
 
-SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
 
 float SigmaM;
 float Epsilon;
@@ -42,7 +43,7 @@ void TakeStep(inout LineIntegralConv lic)
 	lic.deltaLength = absTan.x > absTan.y ? stepsXY.x : stepsXY.y; //optimise this
          
 	//move uv along the delta step
-	lic.uv += tan * lic.deltaLength * ViewPort_ExtentInverse;
+	lic.uv += tan * lic.deltaLength * InViewPort_ExtentInverse;
 	lic.totalLength += lic.deltaLength; //this is used to checking if we are done looping through aka have we stepped along enough
 }
 
@@ -61,7 +62,7 @@ float4 DoGFlowPS(
 	//a goes up the curve b goes down the curve
 	LineIntegralConv a, b;
 	a.uv = b.uv = InUV;
-	a.prevTan = InTangentFlowMapTexture.Sample(sampler0, InUV).xy * ViewPort_ExtentInverse;
+	a.prevTan = InTangentFlowMapTexture.Sample(sampler0, InUV).xy * InViewPort_ExtentInverse;
 	b.prevTan = -a.prevTan;
 	a.totalLength = b.totalLength = 0.0;
 	a.deltaLength = b.deltaLength = 0.0;

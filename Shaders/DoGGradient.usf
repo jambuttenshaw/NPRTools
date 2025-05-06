@@ -2,7 +2,8 @@
 #include "/Engine/Private/ScreenPass.ush"
 
 
-SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
 
 float SigmaE;
 float SigmaP; // = SigmaE * k
@@ -26,7 +27,7 @@ float4 DoGGradientPS(
 
 	float deltaStep = rcp(max(NormAbs.x, NormAbs.y));
 
-	float2 dir = normal * ViewPort_ExtentInverse;
+	float2 dir = normal * InViewPort_ExtentInverse;
 
 	//the x will be for the GaussianE  and y will be for GaussianEPrime  use vector maths ftw
 

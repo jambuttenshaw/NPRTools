@@ -6,7 +6,8 @@
 #endif
 
 
-SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
 
 Texture2D<float4> InTexture;
 
@@ -20,7 +21,7 @@ float4 BlurEigenVerticalPS(
 	float4 SvPosition : SV_Position
 ) : SV_Target0
 {
-	const float rcpH = ViewPort_ExtentInverse.y;
+	const float rcpH = InViewPort_ExtentInverse.y;
 	const float oneOver256 = 1.0 / 256.0;
 	float3 u = float3(
 				 oneOver256 * InTexture.Sample(sampler0, InUV + float2(0.0, -rcpH) * 4.0f).rgb +
@@ -43,7 +44,7 @@ float4 BlurEigenHorizontalPS(
 	float4 SvPosition : SV_Position
 ) : SV_Target0
 {
-	const float rcpW = ViewPort_ExtentInverse.x;
+	const float rcpW = InViewPort_ExtentInverse.x;
 	const float oneOver256 = 1.0 / 256.0;
 	float3 u = float3(
 			   oneOver256 * InTexture.Sample(sampler0, InUV + float2(-rcpW, 0.0) * 4.0f).rgb +

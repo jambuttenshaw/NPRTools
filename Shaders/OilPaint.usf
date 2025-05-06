@@ -2,9 +2,9 @@
 
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/ScreenPass.ush"
-#include "/Engine/Private/Random.ush"
 
-SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
 
 #define QUALITY_PERCENT 85
 
@@ -30,7 +30,7 @@ SamplerState sampler0;
 
 float2 getRand2(int idx)
 {
-	float2 uv = float2(idx % ViewPort_Extent.x, idx / ViewPort_Extent.y) * ViewPort_ExtentInverse;
+	float2 uv = float2(idx % InViewPort_Extent.x, idx / InViewPort_Extent.y) * InViewPort_ExtentInverse;
     float noiseX = (frac(sin(dot(uv, float2(12.9898,78.233) * 2.0)) * 43758.5453));
     float noiseY = sqrt(1 - noiseX * noiseX);
     return float2(noiseX, noiseY);
@@ -44,8 +44,8 @@ float4 getRand(int idx)
 
 float4 getCol(float2 pos)
 {
-	float2 Res = (float2) (ViewPort_Extent);
-	float2 Res0 = (float2) (ViewPort_Extent);
+	float2 Res = (float2) (InViewPort_Extent);
+	float2 Res0 = (float2) (InViewPort_Extent);
 
 	float lod = 1.;
     // use max(...) for fitting full image or min(...) for fitting only one dir
@@ -79,7 +79,7 @@ float4 OilPaintStrokesPS(
 	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
-	int2 Res = ViewPort_Extent;
+	int2 Res = InViewPort_Extent;
 	float2 pos = InUV * Res;
     
 	float4 fragColor = float4(0, 0, 0, 1);
@@ -202,7 +202,7 @@ float4 OilPaintReliefLightingPS(
 	float2 InUV : TEXCOORD0
 ) : SV_Target0
 {
-	float3 n = float3(getGrad(InUV, 1.0 / ViewPort_Extent.y), 150.0);
+	float3 n = float3(getGrad(InUV, 1.0 / InViewPort_Extent.y), 150.0);
 	n = normalize(n);
 
 	float3 light = normalize(float3(-1, 1, 1.4));

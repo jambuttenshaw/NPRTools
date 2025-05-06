@@ -2,7 +2,8 @@
 #include "/Engine/Private/ScreenPass.ush"
 
 
-SCREEN_PASS_TEXTURE_VIEWPORT(ViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
 
 float SigmaD;
 float SigmaR;
@@ -31,7 +32,7 @@ float4 BilateralPS(
 	float2 dirAbs = abs(dir);
 	float deltaS = rcp(max(dirAbs.x, dirAbs.y));
 
-	dir *= ViewPort_ExtentInverse;
+	dir *= InViewPort_ExtentInverse;
 
 	float3 pix = InSceneColorYCCTexture.Sample(sampler0, InUV).xyz;
 	float3 sum = pix;

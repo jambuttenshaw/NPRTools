@@ -49,4 +49,6 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	PencilSketchParameters.Threshold = 0.01f;
 	PencilSketchParameters.Sensitivity = 10.0f;
 	PencilSketchParameters.Boldness = 0.9f;
+
+	DownsampleParameters.NumPasses = 1;
 }

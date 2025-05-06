@@ -58,6 +58,9 @@ FNPRToolsParametersProxy::FNPRToolsParametersProxy(const UNPRToolsParametersData
 		PencilSketchParameters.Sensitivity = ParamsAsset->PencilSketchParameters.Sensitivity;
 		PencilSketchParameters.Boldness = ParamsAsset->PencilSketchParameters.Boldness;
 		break;
+	case ENPRToolsColorPipeline::Downsample:
+		DownsampleParameters.NumPasses = ParamsAsset->DownsampleParameters.NumPasses;
+		break;
 	default:
 		break;
 	}
