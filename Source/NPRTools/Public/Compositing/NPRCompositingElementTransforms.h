@@ -13,9 +13,6 @@ class NPRTOOLS_API UCompositingNPRPass : public UCompositingElementTransform
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
-	float RenderScale = 1.f;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Compositing Pass", meta = (DisplayAfter = "PassName", EditCondition = "bEnabled"))
 	UNPRToolsParametersDataAsset* NPRParameters;
 

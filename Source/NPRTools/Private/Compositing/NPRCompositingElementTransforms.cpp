@@ -13,48 +13,35 @@ UTexture* UCompositingNPRPass::ApplyTransform_Implementation(UTexture* Input, UC
 {
 	UTexture* Result = Input;
 
-	if (NPRParameters)
+	if (NPRParameters && Input)
 	{
 		// Create parameters proxy
 		FNPRToolsParametersProxyPtr Proxy = MakeShared<FNPRToolsParametersProxy>(NPRParameters);
 
 		// Validate input colour texture
-		check(Input);
 		check(Input->GetResource());
 
 		FIntPoint Dims;
 		Dims.X = Input->GetResource()->GetSizeX();
 		Dims.Y = Input->GetResource()->GetSizeY();
 
-		EPixelFormat Format = PF_Unknown;
-		if (UTextureRenderTarget2D* InputRT = Cast<UTextureRenderTarget2D>(Input))
-		{
-			Format = InputRT->GetFormat();
-		}
-		else if (UTexture2D* InputTexture2D = Cast<UTexture2D>(Input))
-		{
-			Format = InputTexture2D->GetPixelFormat();
-		}
-		else
-		{
-			check(false);
-		}
+		EPixelFormat Format = PF_FloatRGBA;
 
 		// Get a render target to output to
 		UTextureRenderTarget2D* RenderTarget = RequestRenderTarget(Dims, Format);
-		check(RenderTarget);
-		check(RenderTarget->GetResource());
+		if (RenderTarget && RenderTarget->GetResource())
+		{
+			ENQUEUE_RENDER_COMMAND(ApplyNPRTransform)(
+					[this, TempProxy = MoveTemp(Proxy), InputResource = Input->GetResource(), OutputResource = RenderTarget->GetResource()]
+					(FRHICommandListImmediate& RHICmdList)
+				{
+					this->ParametersProxy = TempProxy;
+					this->ApplyTransform_RenderThread(RHICmdList, InputResource, OutputResource);
+				}
+			);
 
-		ENQUEUE_RENDER_COMMAND(ApplyNPRTransform)(
-				[this, TempProxy = MoveTemp(Proxy), InputResource = Input->GetResource(), OutputResource = RenderTarget->GetResource()]
-				(FRHICommandListImmediate& RHICmdList)
-			{
-				this->ParametersProxy = TempProxy;
-				this->ApplyTransform_RenderThread(RHICmdList, InputResource, OutputResource);
-			}
-		);
-
-		Result = RenderTarget;
+			Result = RenderTarget;
+		}
 	}
 
 	return Result;
@@ -73,7 +60,7 @@ void UCompositingNPRPass::ApplyTransform_RenderThread(FRHICommandListImmediate& 
 
 	// Set up RDG resources
 	FRDGTextureRef InColorTexture = GraphBuilder.RegisterExternalTexture(InputRT);
-	FRDGTextureRef OutColorTexture = GraphBuilder.RegisterExternalTexture(InputRT);
+	FRDGTextureRef OutColorTexture = GraphBuilder.RegisterExternalTexture(OutputRT);
 
 	// Execute pipeline
 	NPRTools::ExecuteNPRPipeline(

@@ -36,13 +36,7 @@ void UNPRToolsWorldSubsystem::TransferState()
 		}
 	}
 
-	if (!ParamsAsset)
-	{
-		// No state to transfer
-		return;
-	}
-
-	FNPRToolsParametersProxyPtr Proxy = MakeShared<FNPRToolsParametersProxy>(ParamsAsset);
+	FNPRToolsParametersProxyPtr Proxy = ParamsAsset ? MakeShared<FNPRToolsParametersProxy>(ParamsAsset) : MakeShared<FNPRToolsParametersProxy>();
 
 	ENQUEUE_RENDER_COMMAND(CopyNPRToolsParametersProxies)(
 		[this, TempProxy = MoveTemp(Proxy)]

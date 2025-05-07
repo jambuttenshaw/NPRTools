@@ -92,6 +92,6 @@ struct FNPRToolsParametersProxy
 		FNPRPixelArtParametersProxy PixelArtParameters;
 	};
 
-
+	FNPRToolsParametersProxy();
 	explicit FNPRToolsParametersProxy(const UNPRToolsParametersDataAsset* ParamsAsset);
 };

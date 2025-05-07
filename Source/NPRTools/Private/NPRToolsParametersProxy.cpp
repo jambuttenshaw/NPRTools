@@ -1,6 +1,13 @@
 #include "NPRToolsParametersProxy.h"
 
 
+FNPRToolsParametersProxy::FNPRToolsParametersProxy()
+{
+	FMemory::Memset(this, 0, sizeof(this));
+	bEnable = false;
+}
+
+
 FNPRToolsParametersProxy::FNPRToolsParametersProxy(const UNPRToolsParametersDataAsset* ParamsAsset)
 {
 	// If an invalid params asset is passed in, the proxy will be constructed from the default parameters
