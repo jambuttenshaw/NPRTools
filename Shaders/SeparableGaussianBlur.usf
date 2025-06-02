@@ -32,10 +32,10 @@ float4 SeparableGaussianBlurPS(
 		weightSum += weight;
         
 		outColor += InTexture.Sample(sampler0, InUV +
-#ifdef BLUR_HORIZONTAL
+#if BLUR_HORIZONTAL
 			float2(x * InViewPort_ExtentInverse.x, 0.))
 #else
-			float2(0., x * InViewPort_ExtentInverse.x))
+			float2(0., x * InViewPort_ExtentInverse.y))
 #endif
 			* weight;
 	}
