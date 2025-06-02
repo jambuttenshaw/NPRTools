@@ -638,6 +638,7 @@ bool NPRTools::ExecuteNPRPipeline(
 				NPRParameters.PixelArtParameters,
 				InColorTexture
 			);
+			break;
 		case ENPRToolsColorPipeline::ShockFilter:
 			ProcessedColorTexture = ShockFilter(
 				GraphBuilder,
