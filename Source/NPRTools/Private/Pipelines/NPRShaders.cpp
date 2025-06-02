@@ -30,3 +30,7 @@ IMPLEMENT_GLOBAL_SHADER(FPencilSketchPS, "/NPRTools/PencilSketch.usf", "PencilSk
 IMPLEMENT_GLOBAL_SHADER(FDownsamplePS, "/NPRTools/PixelArt.usf", "DownsamplePS", SF_Pixel);
 
 IMPLEMENT_GLOBAL_SHADER(FDitherPS, "/NPRTools/PixelArt.usf", "DitherPS", SF_Pixel);
+
+IMPLEMENT_GLOBAL_SHADER(FFLoGPS, "/NPRTools/ShockFilter.usf", "FLoGPS", SF_Pixel);
+
+IMPLEMENT_GLOBAL_SHADER(FGradientShockPS, "/NPRTools/ShockFilter.usf", "GradientShockPS", SF_Pixel);

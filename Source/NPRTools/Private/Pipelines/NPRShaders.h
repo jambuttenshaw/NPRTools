@@ -317,3 +317,46 @@ class FDitherPS : public FGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
+
+
+// Flow-guided Laplacian of Gaussians
+class FFLoGPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FFLoGPS);
+	SHADER_USE_PARAMETER_STRUCT(FFLoGPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
+		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InTangentFlowMapTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InLuminanceTexture)
+
+		SHADER_PARAMETER(float, Sigma)
+
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+
+class FGradientShockPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FGradientShockPS);
+	SHADER_USE_PARAMETER_STRUCT(FGradientShockPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
+		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InTangentFlowMapTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InLuminanceTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float>, InSignTexture)
+
+		SHADER_PARAMETER(float, Radius)
+
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};

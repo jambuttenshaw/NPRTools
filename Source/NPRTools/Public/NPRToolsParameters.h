@@ -13,7 +13,8 @@ enum class ENPRToolsColorPipeline : uint8
 	Kuwahara,
 	OilPaint,
 	PencilSketch,
-	PixelArt
+	PixelArt,
+	ShockFilter
 };
 
 UENUM(BlueprintType)
@@ -162,6 +163,18 @@ struct FNPRPixelArtParameters
 	int BayerLevel;
 };
 
+USTRUCT(BlueprintType)
+struct FNPRShockFilterParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Sigma;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float Radius;
+};
+
 
 /**
  *
@@ -221,4 +234,8 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PixelArt",
 		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::PixelArt"))
 	FNPRPixelArtParameters PixelArtParameters;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "ShockFilter",
+		meta = (ShowOnlyInnerProperties, EditCondition = "bCompositeColor&&ColorPipeline==ENPRToolsColorPipeline::ShockFilter"))
+	FNPRShockFilterParameters ShockFilterParameters;
 };

@@ -94,11 +94,11 @@ void AddNPRPass(
 
 
 // Ensures compatible texture descriptions for all textures in the pipeline
-FRDGTextureRef CreateTextureFrom(FRDGBuilder& GraphBuilder, FRDGTextureRef InTex, const TCHAR* Name, float ScaleFactor = 1.0f)
+FRDGTextureRef CreateTextureFrom(FRDGBuilder& GraphBuilder, FRDGTextureRef InTex, const TCHAR* Name, float ScaleFactor = 1.0f, EPixelFormat Format = PF_FloatRGBA)
 {
 	FRDGTextureDesc Desc = InTex->Desc;
 	Desc.ClearValue = FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f));
-	Desc.Format = PF_FloatRGBA;
+	Desc.Format = Format;
 	Desc.Extent.X = static_cast<int>(static_cast<float>(Desc.Extent.X) * ScaleFactor);
 	Desc.Extent.Y = static_cast<int>(static_cast<float>(Desc.Extent.Y) * ScaleFactor);
 	return GraphBuilder.CreateTexture(Desc, Name);
@@ -499,6 +499,48 @@ FRDGTextureRef DownsampleFilter(
 	return PingPongTextures[1 - WriteTextureIndex];
 }
 
+FRDGTextureRef ShockFilter(
+	FRDGBuilder& GraphBuilder,
+	const FNPRShockFilterParametersProxy& Parameters,
+	FRDGTextureRef InColorTexture,
+	FRDGTextureRef InTangentFlowMap,
+	FRDGTextureRef InLuminanceTexture
+)
+{
+	FRDGTextureRef SignTexture = CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.ShockFilter.Sign"), 1.0f, PF_R32_FLOAT);
+	FRDGTextureRef Output = CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.ShockFilter.Output"));
+
+	AddNPRPass<FFLoGPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("FLoG"),
+		SignTexture,
+		[&](auto PassParameters)
+		{
+			PassParameters->Sigma = Parameters.Sigma;
+
+			PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMap);
+			PassParameters->InLuminanceTexture = GraphBuilder.CreateSRV(InLuminanceTexture);
+		}
+	);
+
+	AddNPRPass<FGradientShockPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("GradientShock"),
+		Output,
+		[&](auto PassParameters)
+		{
+			PassParameters->Radius = Parameters.Radius;
+
+			PassParameters->InColorTexture = GraphBuilder.CreateSRV(InColorTexture);
+			PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMap);
+			PassParameters->InLuminanceTexture = GraphBuilder.CreateSRV(InLuminanceTexture);
+			PassParameters->InSignTexture = GraphBuilder.CreateSRV(SignTexture);
+		}
+	);
+
+	return Output;
+}
+
 
 bool NPRTools::ExecuteNPRPipeline(
 	FRDGBuilder& GraphBuilder,
@@ -595,6 +637,14 @@ bool NPRTools::ExecuteNPRPipeline(
 				GraphBuilder,
 				NPRParameters.PixelArtParameters,
 				InColorTexture
+			);
+		case ENPRToolsColorPipeline::ShockFilter:
+			ProcessedColorTexture = ShockFilter(
+				GraphBuilder,
+				NPRParameters.ShockFilterParameters,
+				InColorTexture,
+				TangentFlowMapTexture,
+				YCCTexture
 			);
 		default:
 			// No color processing will retain original scene colour

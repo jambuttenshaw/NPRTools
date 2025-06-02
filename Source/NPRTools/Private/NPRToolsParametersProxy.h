@@ -63,6 +63,12 @@ struct FNPRPixelArtParametersProxy
 	int BayerLevel;
 };
 
+struct FNPRShockFilterParametersProxy
+{
+	float Sigma;
+	float Radius;
+};
+
 
 // Render thread representation of parameters controlling NPR FX
 struct FNPRToolsParametersProxy
@@ -90,6 +96,7 @@ struct FNPRToolsParametersProxy
 		FNPROilPaintParametersProxy OilPaintParameters;
 		FNPRPencilSketchParametersProxy PencilSketchParameters;
 		FNPRPixelArtParametersProxy PixelArtParameters;
+		FNPRShockFilterParametersProxy ShockFilterParameters;
 	};
 
 	FNPRToolsParametersProxy();
