@@ -1,0 +1,136 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
+
+SamplerState sampler0;
+
+float Sigma;
+
+Texture2D<float4> InTangentFlowMapTexture;
+Texture2D<float4> InLuminanceTexture; // Scene color in Ycc
+
+
+float FLoGPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+	const int2 i = InUV * InViewPort_Extent;
+
+	const float2 t = InTangentFlowMapTexture.Sample(sampler0, InUV).xy;
+	const float2 n = float2(t.y, -t.x); // major eigenvector from structured tensor
+
+	const float2 nabs = abs(n);
+	const float ds = 1.0f / ((nabs.x > nabs.y) ? nabs.x : nabs.y);
+	const float2 uv = float2(i) + 0.5f;
+
+	const float halfWidth = 5 * Sigma;
+	const float sigma2 = Sigma * Sigma;
+	const float twoSigma2 = 2 * sigma2;
+
+	float sum = -sigma2 * InLuminanceTexture.Sample(sampler0, InUV).r;
+	for (float d = ds; d <= halfWidth; d += ds)
+	{
+		float k = (d * d - sigma2) * exp(-d * d / twoSigma2);
+		float2 o = d * n;
+		float c = InLuminanceTexture.Sample(sampler0, (uv + o) * InViewPort_ExtentInverse).r +
+				  InLuminanceTexture.Sample(sampler0, (uv - o) * InViewPort_ExtentInverse).r;
+		sum += k * c;
+	}
+	sum /= sqrt(2 * PI) * sigma2 * Sigma;
+
+	return sum;
+}
+
+
+enum minmax_t { MIN_FLT, MAX_FLT };
+
+struct minmax_impl_t
+{
+	float2 uv_;
+	float2 p_;
+	float v_;
+
+	void init(float2 uv)
+	{
+		uv_ = uv;
+		p_ = uv;
+		v_ = InLuminanceTexture.Sample(sampler0, uv).r;
+	}
+
+	template <minmax_t T>
+	void add(float2 p)
+	{
+		float L = InLuminanceTexture.Sample(sampler0, p).r;
+		if ((T == MAX_FLT) && (L > v_))
+		{
+			p_ = p;
+			v_ = L;
+		}
+		if ((T == MIN_FLT) && (L < v_))
+		{
+			p_ = p;
+			v_ = L;
+		}
+	}
+
+	template <minmax_t T>
+	void run(float2 n, float radius)
+	{
+		float ds;
+		float2 dp;
+
+		float2 nabs = abs(n);
+		if (nabs.x > nabs.y)
+		{
+			ds = 1.0f / nabs.x;
+			dp = float2(0, 0.5f - 1e-3);
+		}
+		else
+		{
+			ds = 1.0f / nabs.y;
+			dp = float2(0.5f - 1e-3, 0);
+		}
+
+		for (float d = ds; d <= radius; d += ds)
+		{
+			float2 o = d * n;
+			add<T>(uv_ + (o + dp) * InViewPort_ExtentInverse);
+			add<T>(uv_ + (o - dp) * InViewPort_ExtentInverse);
+			add<T>(uv_ - (o + dp) * InViewPort_ExtentInverse);
+			add<T>(uv_ - (o - dp) * InViewPort_ExtentInverse);
+		}
+	}
+};
+
+
+float Radius;
+
+Texture2D<float4> InColorTexture;
+Texture2D<float> InSignTexture;
+
+
+float4 GradientShockPS(
+	float2 InUV : TEXCOORD0
+) : SV_Target0
+{
+	minmax_impl_t mm = (minmax_impl_t)0;
+	mm.init(InUV);
+
+	const float2 t = InTangentFlowMapTexture.Sample(sampler0, InUV).xy;
+	const float2 n = float2(t.y, -t.x); // major eigenvector from structured tensor
+
+	float s = InSignTexture.Sample(sampler0, InUV);
+	if (s < 0)
+	{
+		mm.run<MAX_FLT>(n, Radius);
+	}
+	else if (s > 0)
+	{
+		mm.run<MIN_FLT>(n, Radius);
+	}
+
+	return InColorTexture.Sample(sampler0, mm.p_);
+}
