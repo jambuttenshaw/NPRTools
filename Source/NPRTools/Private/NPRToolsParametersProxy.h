@@ -65,7 +65,9 @@ struct FNPRPixelArtParametersProxy
 
 struct FNPRShockFilterParametersProxy
 {
-	float Sigma;
+	bool bUseIsotropicBlur;
+	float SigmaI;
+	float SigmaG;
 	float Radius;
 };
 

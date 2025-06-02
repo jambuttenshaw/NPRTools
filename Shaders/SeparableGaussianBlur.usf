@@ -1,0 +1,45 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(OutViewPort)
+SCREEN_PASS_TEXTURE_VIEWPORT(InViewPort)
+
+Texture2D<float4> InTexture;
+SamplerState sampler0;
+
+float Sigma;
+
+
+/**
+ * Adapted from: https://www.shadertoy.com/view/cldSWB
+ */
+
+
+float4 SeparableGaussianBlurPS(
+	float2 InUV : TEXCOORD0,
+	float4 SvPosition : SV_Position
+) : SV_Target0
+{
+	int kernelSize = 2 * int(floor(4. * Sigma + .5)) + 1;
+	float twoSigma2 = 2 * Sigma * Sigma;
+
+	float weightSum = 0.;
+	float4 outColor = 0.;
+	for (int i = 0; i < kernelSize; i++)
+	{
+		float x = float(i) - (float(kernelSize) * .5);
+		float weight = exp(-(x * x) / twoSigma2);
+		weightSum += weight;
+        
+		outColor += InTexture.Sample(sampler0, InUV +
+#ifdef BLUR_HORIZONTAL
+			float2(x * InViewPort_ExtentInverse.x, 0.))
+#else
+			float2(0., x * InViewPort_ExtentInverse.x))
+#endif
+			* weight;
+	}
+	outColor /= weightSum;
+    
+	return float4(outColor.rgb, 1.0);
+}

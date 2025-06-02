@@ -55,6 +55,8 @@ UNPRToolsParametersDataAsset::UNPRToolsParametersDataAsset()
 	PixelArtParameters.ColorCount = FIntVector(64);
 	PixelArtParameters.BayerLevel = 1;
 
+	ShockFilterParameters.bUseIsotropicBlur = true;
+	ShockFilterParameters.SigmaIsotropic = 1.0f;
+	ShockFilterParameters.SigmaGradient = 2.0f;
 	ShockFilterParameters.Radius = 2.0f;
-	ShockFilterParameters.Sigma = 1.0f;
 }

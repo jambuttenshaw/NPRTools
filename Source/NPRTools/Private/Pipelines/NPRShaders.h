@@ -360,3 +360,24 @@ class FGradientShockPS : public FGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
+
+
+class FSeparableGaussianBlurPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FSeparableGaussianBlurPS);
+	SHADER_USE_PARAMETER_STRUCT(FSeparableGaussianBlurPS, FGlobalShader);
+
+	class FSeparableDirectionHorizontal: SHADER_PERMUTATION_BOOL("BLUR_HORIZONTAL");
+	using FPermutationDomain = TShaderPermutationDomain<FSeparableDirectionHorizontal>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutViewPort)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InViewPort)
+		SHADER_PARAMETER_SAMPLER(SamplerState, sampler0)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InTexture)
+		SHADER_PARAMETER(float, Sigma)
+
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};

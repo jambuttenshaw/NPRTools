@@ -169,7 +169,13 @@ struct FNPRShockFilterParameters
 	GENERATED_BODY()
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
-	float Sigma;
+	bool bUseIsotropicBlur;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float SigmaIsotropic;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere)
+	float SigmaGradient;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere)
 	float Radius;

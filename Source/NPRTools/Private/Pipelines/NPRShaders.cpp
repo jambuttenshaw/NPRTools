@@ -34,3 +34,5 @@ IMPLEMENT_GLOBAL_SHADER(FDitherPS, "/NPRTools/PixelArt.usf", "DitherPS", SF_Pixe
 IMPLEMENT_GLOBAL_SHADER(FFLoGPS, "/NPRTools/ShockFilter.usf", "FLoGPS", SF_Pixel);
 
 IMPLEMENT_GLOBAL_SHADER(FGradientShockPS, "/NPRTools/ShockFilter.usf", "GradientShockPS", SF_Pixel);
+
+IMPLEMENT_GLOBAL_SHADER(FSeparableGaussianBlurPS, "/NPRTools/SeparableGaussianBlur.usf", "SeparableGaussianBlurPS", SF_Pixel);

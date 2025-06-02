@@ -105,6 +105,48 @@ FRDGTextureRef CreateTextureFrom(FRDGBuilder& GraphBuilder, FRDGTextureRef InTex
 }
 
 
+FRDGTextureRef GaussianBlur(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef InTexture,
+	float Sigma
+)
+{
+	FRDGTextureRef Temp = CreateTextureFrom(GraphBuilder, InTexture, TEXT("NPRTools.GaussianBlur.Temp"));
+	FRDGTextureRef Output = CreateTextureFrom(GraphBuilder, InTexture, TEXT("NPRTools.GaussianBlur.Output"));
+
+	FSeparableGaussianBlurPS::FPermutationDomain Permutation;
+	Permutation.Set<FSeparableGaussianBlurPS::FSeparableDirectionHorizontal>(true);
+
+	AddNPRPass<FSeparableGaussianBlurPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("GaussianBlur_Horizontal"),
+		Temp,
+		[&](auto PassParameters)
+		{
+			PassParameters->InTexture = GraphBuilder.CreateSRV(InTexture);
+			PassParameters->Sigma = Sigma;
+		},
+		Permutation
+	);
+
+	Permutation.Set<FSeparableGaussianBlurPS::FSeparableDirectionHorizontal>(false);
+
+	AddNPRPass<FSeparableGaussianBlurPS>(
+		GraphBuilder,
+		RDG_EVENT_NAME("GaussianBlur_Vertical"),
+		Output,
+		[&](auto PassParameters)
+		{
+			PassParameters->InTexture = GraphBuilder.CreateSRV(Temp);
+			PassParameters->Sigma = Sigma;
+		},
+		Permutation
+	);
+
+	return Output;
+}
+
+
 FRDGTextureRef CreateTangentFlowMap(
 	FRDGBuilder& GraphBuilder,
 	const FNPRToolsParametersProxy& NPRParameters,
@@ -510,16 +552,18 @@ FRDGTextureRef ShockFilter(
 	FRDGTextureRef SignTexture = CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.ShockFilter.Sign"), 1.0f, PF_R32_FLOAT);
 	FRDGTextureRef Output = CreateTextureFrom(GraphBuilder, InColorTexture, TEXT("NPRTools.ShockFilter.Output"));
 
+	FRDGTextureRef Luminance = Parameters.bUseIsotropicBlur ? GaussianBlur(GraphBuilder, InLuminanceTexture, Parameters.SigmaI) : InLuminanceTexture;
+
 	AddNPRPass<FFLoGPS>(
 		GraphBuilder,
 		RDG_EVENT_NAME("FLoG"),
 		SignTexture,
 		[&](auto PassParameters)
 		{
-			PassParameters->Sigma = Parameters.Sigma;
+			PassParameters->Sigma = Parameters.SigmaG;
 
 			PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMap);
-			PassParameters->InLuminanceTexture = GraphBuilder.CreateSRV(InLuminanceTexture);
+			PassParameters->InLuminanceTexture = GraphBuilder.CreateSRV(Luminance);
 		}
 	);
 
@@ -533,7 +577,7 @@ FRDGTextureRef ShockFilter(
 
 			PassParameters->InColorTexture = GraphBuilder.CreateSRV(InColorTexture);
 			PassParameters->InTangentFlowMapTexture = GraphBuilder.CreateSRV(InTangentFlowMap);
-			PassParameters->InLuminanceTexture = GraphBuilder.CreateSRV(InLuminanceTexture);
+			PassParameters->InLuminanceTexture = GraphBuilder.CreateSRV(Luminance);
 			PassParameters->InSignTexture = GraphBuilder.CreateSRV(SignTexture);
 		}
 	);
@@ -647,6 +691,7 @@ bool NPRTools::ExecuteNPRPipeline(
 				TangentFlowMapTexture,
 				YCCTexture
 			);
+			break;
 		default:
 			// No color processing will retain original scene colour
 			break;

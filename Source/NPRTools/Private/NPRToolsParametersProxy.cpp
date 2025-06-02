@@ -72,7 +72,9 @@ FNPRToolsParametersProxy::FNPRToolsParametersProxy(const UNPRToolsParametersData
 		PixelArtParameters.BayerLevel = ParamsAsset->PixelArtParameters.BayerLevel;
 		break;
 	case ENPRToolsColorPipeline::ShockFilter:
-		ShockFilterParameters.Sigma = ParamsAsset->ShockFilterParameters.Sigma;
+		ShockFilterParameters.bUseIsotropicBlur = ParamsAsset->ShockFilterParameters.bUseIsotropicBlur;
+		ShockFilterParameters.SigmaI = ParamsAsset->ShockFilterParameters.SigmaIsotropic;
+		ShockFilterParameters.SigmaG = ParamsAsset->ShockFilterParameters.SigmaGradient;
 		ShockFilterParameters.Radius = ParamsAsset->ShockFilterParameters.Radius;
 	default:
 		break;
